@@ -7,8 +7,12 @@ import os
 # Define the central directory for all test outputs
 OUTPUT_DIR = "outputs"
 
+OPENAI_BASE_URL = "http://192.168.1.100:8000/v1"
+OPENAI_API_KEY = "not-needed"
+MODEL_NAME = "qwen/qwen3.5-9b"
+
 OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "gemma2:2b"
+EVAL_MODEL_NAME = "gemma2:2b"
 
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8080

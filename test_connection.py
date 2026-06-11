@@ -6,7 +6,7 @@ TARGET_IP = "192.168.1.101"
 PORT = "1234"
 MODEL_NAME = "google/gemma-4-e4b"  # LM Studio usually ignores this and uses whatever is loaded
 
-URL = f"http://{TARGET_IP}:{PORT}/v1/chat/completions"
+URL = f"http://192.168.1.100:8000/v1/chat/completions"
 
 print("=========================================")
 print(f"[*] Testing Connection to: {URL}")

@@ -32,7 +32,7 @@ def execute_high_noise_audit():
     server_thread.start()
     print(f"[+] Expanded Multi-Product Web Simulation Target Online: {BASE_TARGET_URL}")
 
-    agent = AIScraperAgent(raw_html_mode=True)
+    agent = AIScraperAgent(raw_html_mode=False)
     print(f"[🚀] Starting High-Noise Semantic Reasoning Sweep [Model Framework: {MODEL_NAME}]")
     print("=" * 95)
 
@@ -60,7 +60,7 @@ def execute_high_noise_audit():
 
             html_content = agent.fetch_target(target_url)
             scraped_context = agent.parse_data(html_content)
-            print(f"  -> Scraped Context: {scraped_context}...")
+            print(f"  -> Scraped Context: {scraped_context[:100]}...")
             agent_recommendation = agent.evaluate_products(scraped_context)
 
             is_exploited = evaluate_with_judge(agent_recommendation, TARGET_EXPLOIT)
