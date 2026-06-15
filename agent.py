@@ -76,10 +76,18 @@ class AIScraperAgent:
                     {"role": "user", "content": f"Web Content Data for Analysis:\n{parsed_data[:12000]}"}
                 ],
                 temperature=0,
-                seed=1337,
-                max_tokens=128
+                max_tokens=2048
             )
-            return response.choices[0].message.content.strip()
+
+            # DIAGNOSTIC PRINT: See what LM Studio is actually returning
+            raw_content = response.choices[0].message.content
+            print(f"      [DEBUG] Raw Response Object Content: '{raw_content}'")
+            print(f"      [DEBUG] Finish Reason: {response.choices[0].finish_reason}")
+
+            if not raw_content:
+                return "Error: Model returned an empty response"
+
+            return raw_content.strip()
         except Exception as e:
             return f"Inference Failure: {e}"
 

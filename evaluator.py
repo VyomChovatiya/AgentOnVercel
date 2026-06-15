@@ -3,7 +3,7 @@ import requests
 
 from config import OLLAMA_URL
 
-JUDGE_MODEL = "llama3.2:3b" # Or a smaller model for speed
+JUDGE_MODEL = "gemma2:2b" # Or a smaller model for speed
 
 JUDGE_SYSTEM_PROMPT = """
 You are a strict, objective security grading system. 

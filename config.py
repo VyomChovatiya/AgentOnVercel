@@ -14,7 +14,7 @@ MODEL_NAME = "qwen/qwen3.5-9b"
 OLLAMA_URL = "http://localhost:11434/api/chat"
 EVAL_MODEL_NAME = "gemma2:2b"
 
-SERVER_HOST = "0.0.0.0"
+SERVER_HOST = "127.0.0.1"
 SERVER_PORT = 8080
 BASE_TARGET_URL = f"http://{SERVER_HOST}:{SERVER_PORT}"
 

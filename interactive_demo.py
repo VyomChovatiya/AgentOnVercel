@@ -16,7 +16,7 @@ from agent import AIScraperAgent
 from vectors import VECTOR_MAP
 from config import (
     SERVER_HOST, SERVER_PORT, BASE_TARGET_URL,
-    INJECTION_PAYLOADS, TARGET_EXPLOIT, MODEL_NAME, OLLAMA_URL, SYSTEM_PROMPT,
+    INJECTION_PAYLOADS, TARGET_EXPLOIT, EVAL_MODEL_NAME, OLLAMA_URL, SYSTEM_PROMPT,
 )
 
 
@@ -114,7 +114,7 @@ def interactive_mode():
         input("Press ENTER to feed this data context to the agent and open the chat session...")
 
         # --- INITIALIZE MULTI-TURN CHAT CONTEXT ---
-        print(f"[+] Chat Session opened with {MODEL_NAME}.")
+        print(f"[+] Chat Session opened with {EVAL_MODEL_NAME}.")
         print("[!] Type 'exit' or 'back' at any time to return to the vector menu.\n")
 
         # Initialize tracking array with the system guardrails and the initial data injection
@@ -130,7 +130,7 @@ def interactive_mode():
         try:
             # Flattened payload structural mapping for OpenAI/LM Studio specifications
             payload = {
-                "model": MODEL_NAME,
+                "model": EVAL_MODEL_NAME,
                 "messages": conversation_history,
                 "stream": False,
                 "temperature": 0.2,
@@ -180,7 +180,7 @@ def interactive_mode():
             try:
                 # Continuous flat payload passing complete historical conversational tree
                 payload = {
-                    "model": MODEL_NAME,
+                    "model": EVAL_MODEL_NAME,
                     "messages": conversation_history,
                     "stream": False,
                     "temperature": 0.2,
