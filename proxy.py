@@ -89,7 +89,7 @@ def scrape_url(url: str, selector: str = None):
 REGISTRY = {"web_search": web_search, "scrape_url": scrape_url}
 
 def run_tools(messages, model, extra):
-    """Run tool loop (non-streaming), return final messages + reasoning + content."""
+    """Run tool loop (non-streaming), return final messages + response object."""
     all_tools = TOOLS
 
     while True:
@@ -103,9 +103,7 @@ def run_tools(messages, model, extra):
         finish_reason = response.choices[0].finish_reason
 
         if finish_reason != "tool_calls" or not msg.tool_calls:
-            # Extract reasoning if present
-            reasoning = getattr(msg, "reasoning_content", None)
-            return messages, reasoning, msg.content or ""
+            return messages, response
 
         messages.append(msg.model_dump())
         for tc in msg.tool_calls:
@@ -118,30 +116,35 @@ def run_tools(messages, model, extra):
             print(f"[tool] {fn_name} -> {str(result)[:200]}")
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": json.dumps(result)})
 
-async def stream_response(messages, model, extra, reasoning):
-    """Stream the final response as SSE, prepending reasoning block if present."""
-
+async def stream_response(reasoning, content):
+    """Stream pre-generated reasoning and content as SSE chunks."""
     # First emit reasoning block if we have it
     if reasoning:
-        chunk = {
-            "choices": [{
-                "delta": {"reasoning_content": reasoning},
-                "finish_reason": None,
-                "index": 0
-            }]
-        }
-        yield f"data: {json.dumps(chunk)}\n\n"
+        chunk_size = 40
+        for i in range(0, len(reasoning), chunk_size):
+            chunk = {
+                "choices": [{
+                    "delta": {"reasoning_content": reasoning[i:i+chunk_size]},
+                    "finish_reason": None,
+                    "index": 0
+                }]
+            }
+            yield f"data: {json.dumps(chunk)}\n\n"
+            await asyncio.sleep(0.005)
 
     # Now stream the actual content
-    stream = lm.chat.completions.create(
-        model=model,
-        messages=messages,
-        stream=True,
-        **{k: v for k, v in extra.items() if k != "stream"}
-    )
-
-    for chunk in stream:
-        yield f"data: {json.dumps(chunk.model_dump())}\n\n"
+    if content:
+        chunk_size = 20
+        for i in range(0, len(content), chunk_size):
+            chunk = {
+                "choices": [{
+                    "delta": {"content": content[i:i+chunk_size]},
+                    "finish_reason": None,
+                    "index": 0
+                }]
+            }
+            yield f"data: {json.dumps(chunk)}\n\n"
+            await asyncio.sleep(0.005)
 
     yield "data: [DONE]\n\n"
 
@@ -154,27 +157,22 @@ async def proxy(request: Request):
         extra = {k: v for k, v in body.items() if k not in ("messages", "tools", "model")}
         wants_stream = body.get("stream", False)
 
-        # Always run tool loop non-streaming first
-        messages, reasoning, content = await asyncio.get_event_loop().run_in_executor(
+        # Always run tool loop non-streaming first to resolve all tool calling
+        messages, response = await asyncio.get_event_loop().run_in_executor(
             None, lambda: run_tools(list(messages), model, extra)
         )
 
+        reasoning = getattr(response.choices[0].message, "reasoning_content", None)
+        content = response.choices[0].message.content or ""
+
         if wants_stream:
-            # Append final assistant message and stream it
-            messages.append({"role": "assistant", "content": content})
             return StreamingResponse(
-                stream_response(messages, model, extra, reasoning),
+                stream_response(reasoning, content),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
             )
         else:
-            # Non-streaming: do one final call to get proper response object
-            final = lm.chat.completions.create(
-                model=model,
-                messages=messages,
-                **{k: v for k, v in extra.items() if k != "stream"}
-            )
-            result = final.model_dump()
+            result = response.model_dump()
             # Inject reasoning into response if present
             if reasoning:
                 result["choices"][0]["message"]["reasoning_content"] = reasoning
