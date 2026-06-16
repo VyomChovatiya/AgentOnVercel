@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
@@ -6,7 +6,7 @@ from ddgs import DDGS
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor
-import json, time, httpx, asyncio
+import json, time, httpx, asyncio, io, pypdf, docx
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -179,6 +179,35 @@ async def proxy(request: Request):
             if reasoning:
                 result["choices"][0]["message"]["reasoning_content"] = reasoning
             return JSONResponse(result)
+
+@app.post("/v1/parse-document")
+async def parse_document(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        filename = file.filename.lower()
+        if filename.endswith(".pdf"):
+            reader = pypdf.PdfReader(io.BytesIO(contents))
+            text = ""
+            for page in reader.pages:
+                t = page.extract_text()
+                if t:
+                    text += t + "\n"
+            return {"content": text}
+        elif filename.endswith(".docx"):
+            doc = docx.Document(io.BytesIO(contents))
+            text = ""
+            for para in doc.paragraphs:
+                if para.text:
+                    text += para.text + "\n"
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        text += cell.text + "\n"
+            return {"content": text}
+        else:
+            return {"content": contents.decode("utf-8", errors="ignore")}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
 
 @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def passthrough(path: str, request: Request):

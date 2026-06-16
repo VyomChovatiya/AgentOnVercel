@@ -120,6 +120,12 @@
     #send { background: var(--accent); border: none; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity 0.15s; }
     #send:hover { opacity: 0.85; }
     #send:disabled { opacity: 0.25; cursor: not-allowed; }
+    #attach-btn { background: transparent; border: none; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, color 0.15s; color: var(--text-dim); }
+    #attach-btn:hover { background: var(--surface2); color: var(--text); }
+    .attachments-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 14px 10px; border-bottom: 1px solid var(--border); }
+    .attachment-pill { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px; color: var(--text-mid); }
+    .attachment-pill .remove-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0 2px; }
+    .attachment-pill .remove-btn:hover { color: #f08080; }
     .hint { max-width: 720px; margin: 6px auto 0; text-align: center; font-size: 11px; color: var(--text-dim); }
     .error-bubble { background: #2d1a1a; border: 1px solid #5a2a2a; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #f08080; }
 
@@ -173,7 +179,14 @@
         <span class="endpoint-label">Proxy</span>
         <input type="text" id="endpoint" value="https://flakily-vaseline-catchy.ngrok-free.dev" spellcheck="false">
       </div>
+      <div class="attachments-row" id="attachmentsRow" style="display: none;"></div>
       <div class="textarea-row">
+        <input type="file" id="fileInput" multiple style="display:none;" onchange="handleFileSelect(event)">
+        <button id="attach-btn" type="button" title="Attach Document" onclick="document.getElementById('fileInput').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+          </svg>
+        </button>
         <textarea id="input" placeholder="Message Agent Blue..." rows="1"></textarea>
         <button id="send" onclick="sendMessage()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1c1c1c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -299,6 +312,105 @@ async function checkStatus() {
 endpointEl.addEventListener('change', checkStatus);
 checkStatus();
 
+// ── Document Input State & Handlers ──────────────────────────────
+const attachmentsRow = document.getElementById('attachmentsRow');
+let attachedFiles = [];
+
+async function handleFileSelect(event) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+
+  for (const file of files) {
+    if (attachedFiles.some(f => f.name === file.name)) continue;
+
+    const name = file.name;
+    const lowerName = name.toLowerCase();
+
+    addAttachmentPill(name, true);
+
+    try {
+      let content = "";
+      if (lowerName.endsWith('.pdf') || lowerName.endsWith('.docx')) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(getEndpoint() + '/v1/parse-document', {
+          method: 'POST',
+          body: formData
+        });
+        if (!res.ok) throw new Error("Backend parsing failed");
+        const data = await res.json();
+        content = data.content;
+      } else {
+        content = await readFileAsText(file);
+      }
+      attachedFiles.push({ name, content });
+      updateAttachmentsUI();
+    } catch (err) {
+      console.error(err);
+      alert("Error parsing file: " + name + ". " + err.message);
+      removePillByName(name);
+    }
+  }
+  event.target.value = "";
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+function addAttachmentPill(name, isLoading = false) {
+  attachmentsRow.style.display = 'flex';
+  const pill = document.createElement('div');
+  pill.className = 'attachment-pill';
+  pill.setAttribute('data-name', name);
+  pill.innerHTML = `
+    <span>${name} ${isLoading ? '(reading...)' : ''}</span>
+    <button class="remove-btn" type="button" onclick="removeAttachment('${name.replace(/'/g, "\\'")}')">&times;</button>
+  `;
+  attachmentsRow.appendChild(pill);
+}
+
+function removePillByName(name) {
+  const pill = attachmentsRow.querySelector(`.attachment-pill[data-name="${name}"]`);
+  if (pill) pill.remove();
+  if (attachmentsRow.children.length === 0) {
+    attachmentsRow.style.display = 'none';
+  }
+}
+
+function removeAttachment(name) {
+  attachedFiles = attachedFiles.filter(f => f.name !== name);
+  removePillByName(name);
+}
+
+function updateAttachmentsUI() {
+  attachmentsRow.innerHTML = '';
+  if (attachedFiles.length === 0) {
+    attachmentsRow.style.display = 'none';
+    return;
+  }
+  attachmentsRow.style.display = 'flex';
+  attachedFiles.forEach(file => {
+    const pill = document.createElement('div');
+    pill.className = 'attachment-pill';
+    pill.setAttribute('data-name', file.name);
+    pill.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px; flex-shrink:0;">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+      </svg>
+      <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${file.name}</span>
+      <button class="remove-btn" type="button" onclick="removeAttachment('${file.name.replace(/'/g, "\\'")}')">&times;</button>
+    `;
+    attachmentsRow.appendChild(pill);
+  });
+}
+
 // ── Message rendering ────────────────────────────────────────────
 function createMessageEl(role) {
   document.getElementById('emptyState')?.remove();
@@ -335,11 +447,48 @@ async function sendMessage() {
   isLoading = true; sendBtn.disabled = true;
   inputEl.value = ''; inputEl.style.height = 'auto';
 
+  // Prepare full prompt incorporating document content
+  let promptText = text;
+  if (attachedFiles.length > 0) {
+    const filePrompts = attachedFiles.map(f => `[Uploaded Document: ${f.name}]\n${f.content}\n[End of Document: ${f.name}]`).join('\n\n');
+    promptText = `${filePrompts}\n\n${text}`;
+  }
+
   // User message
   const userMsg = createMessageEl('user');
   const userBody = addBody(userMsg);
   userBody.textContent = text;
-  history.push({ role: 'user', content: text });
+
+  // Append attachment pills to user bubble
+  if (attachedFiles.length > 0) {
+    const attachWrap = document.createElement('div');
+    attachWrap.className = 'user-message-attachments';
+    attachWrap.style.display = 'flex';
+    attachWrap.style.flexWrap = 'wrap';
+    attachWrap.style.gap = '6px';
+    attachWrap.style.marginTop = '8px';
+    attachedFiles.forEach(f => {
+      const p = document.createElement('div');
+      p.className = 'attachment-pill';
+      p.style.background = 'var(--surface)';
+      p.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px; flex-shrink:0;">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${f.name}</span>
+      `;
+      attachWrap.appendChild(p);
+    });
+    userBody.appendChild(attachWrap);
+  }
+
+  history.push({ role: 'user', content: promptText });
+
+  // Clear attachments
+  const currentFiles = [...attachedFiles];
+  attachedFiles = [];
+  updateAttachmentsUI();
 
   // Tool status indicator
   document.getElementById('emptyState')?.remove();
@@ -359,6 +508,7 @@ async function sendMessage() {
 
     const assistantMsg = createMessageEl('assistant');
     let reasoning = '', content = '', bodyEl = null, cursor = null;
+    let thinkingBlockEl = null, thinkingContentEl = null, thinkingToggleEl = null;
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -378,17 +528,37 @@ async function sendMessage() {
           const delta = chunk.choices?.[0]?.delta;
           if (!delta) continue;
 
-          // Reasoning content
+          // Streaming Reasoning / Thinking content in real time
           if (delta.reasoning_content) {
+            if (!thinkingBlockEl) {
+              thinkingBlockEl = document.createElement('div'); thinkingBlockEl.className = 'thinking-block';
+              thinkingToggleEl = document.createElement('button'); thinkingToggleEl.className = 'thinking-toggle open';
+              thinkingToggleEl.innerHTML = `<div class="thinking-dot"></div><span>Thinking...</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+              thinkingContentEl = document.createElement('div'); thinkingContentEl.className = 'thinking-content visible';
+              thinkingBlockEl.appendChild(thinkingToggleEl); thinkingBlockEl.appendChild(thinkingContentEl);
+              assistantMsg.appendChild(thinkingBlockEl);
+              
+              thinkingToggleEl.onclick = () => {
+                thinkingToggleEl.classList.toggle('open');
+                thinkingContentEl.classList.toggle('visible');
+              };
+            }
             reasoning += delta.reasoning_content;
+            thinkingContentEl.textContent = reasoning;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
           }
 
           // Regular content - stream it
           if (delta.content) {
+            // Once actual content starts coming, collapse thinking and mark completed
+            if (thinkingToggleEl && thinkingToggleEl.querySelector('span').textContent === 'Thinking...') {
+              thinkingToggleEl.querySelector('span').textContent = 'Thought for a moment';
+              thinkingToggleEl.classList.remove('open');
+              thinkingContentEl.classList.remove('visible');
+            }
+
             content += delta.content;
             if (!bodyEl) {
-              // Add thinking block first if we have reasoning
-              if (reasoning) addThinkingBlock(assistantMsg, reasoning);
               bodyEl = addBody(assistantMsg);
               cursor = document.createElement('span'); cursor.className = 'cursor';
               bodyEl.appendChild(cursor);
@@ -402,11 +572,15 @@ async function sendMessage() {
       }
     }
 
-    // Final render - remove cursor
+    // Final render - remove cursor and finalize thinking block status
+    if (thinkingToggleEl && thinkingToggleEl.querySelector('span').textContent === 'Thinking...') {
+      thinkingToggleEl.querySelector('span').textContent = 'Thought for a moment';
+      thinkingToggleEl.classList.remove('open');
+      thinkingContentEl.classList.remove('visible');
+    }
     if (bodyEl) { cursor?.remove(); bodyEl.innerHTML = parseMarkdown(content); }
     else if (reasoning) {
-      // Model only returned reasoning, no content - show reasoning expanded
-      addThinkingBlock(assistantMsg, reasoning);
+      // Model only returned reasoning, no content
       const body = addBody(assistantMsg);
       body.innerHTML = '<p style="color:var(--text-dim);font-size:13px;font-style:italic">Model finished thinking but returned no response. Try rephrasing.</p>';
     }
