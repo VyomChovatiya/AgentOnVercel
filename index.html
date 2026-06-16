@@ -246,8 +246,12 @@ function parseMarkdown(text) {
     }
     if (line.trim()==='') { i++; continue; }
     let para='';
-    while (i<lines.length && lines[i].trim()!=='' && !lines[i].match(/^[#>\-*`]/) && !lines[i].match(/^\d+\. /)) {
-      para+=lines[i]+' '; i++;
+    if (i < lines.length) {
+      para += lines[i] + ' ';
+      i++;
+      while (i<lines.length && lines[i].trim()!=='' && !lines[i].match(/^[#>\-*`]/) && !lines[i].match(/^\d+\. /)) {
+        para+=lines[i]+' '; i++;
+      }
     }
     if (para.trim()) html+=`<p>${fmt(para.trim())}</p>`;
   }
