@@ -162,12 +162,12 @@
     <div class="message-wrap">
       <div class="empty-state" id="emptyState">
         <h2>What can I help with?</h2>
-        <p>Connected to your local LM Studio. Web search and scraping are available.</p>
+        <p>Connected to your local LM Studio. Web search, Exa, Jina reader, and Email tools are available.</p>
         <div class="suggestions">
-          <button class="suggestion" onclick="fillInput(this)">Search for the latest AI news today and summarize the top story</button>
-          <button class="suggestion" onclick="fillInput(this)">Scrape and summarize https://news.ycombinator.com</button>
-          <button class="suggestion" onclick="fillInput(this)">What's happening in the stock market today?</button>
-          <button class="suggestion" onclick="fillInput(this)">Find recent research on large language models</button>
+          <button class="suggestion" onclick="fillInput(this)">Use Exa search to find recent breakthroughs in speculative decoding</button>
+          <button class="suggestion" onclick="fillInput(this)">Read https://news.ycombinator.com using Jina reader and summarize it</button>
+          <button class="suggestion" onclick="fillInput(this)">Fetch the latest 5 emails from my inbox</button>
+          <button class="suggestion" onclick="fillInput(this)">Send an email to recipient@example.com with the subject 'Hello' and body 'Hello World'</button>
         </div>
       </div>
     </div>
@@ -292,12 +292,12 @@ function newChat() {
   history = [];
   messagesEl.innerHTML = `<div class="message-wrap"><div class="empty-state" id="emptyState">
     <h2>What can I help with?</h2>
-    <p>Connected to your local LM Studio. Web search and scraping are available.</p>
+    <p>Connected to your local LM Studio. Web search, Exa, Jina reader, and Email tools are available.</p>
     <div class="suggestions">
-      <button class="suggestion" onclick="fillInput(this)">Search for the latest AI news today and summarize the top story</button>
-      <button class="suggestion" onclick="fillInput(this)">Scrape and summarize https://news.ycombinator.com</button>
-      <button class="suggestion" onclick="fillInput(this)">What's happening in the stock market today?</button>
-      <button class="suggestion" onclick="fillInput(this)">Find recent research on large language models</button>
+      <button class="suggestion" onclick="fillInput(this)">Use Exa search to find recent breakthroughs in speculative decoding</button>
+      <button class="suggestion" onclick="fillInput(this)">Read https://news.ycombinator.com using Jina reader and summarize it</button>
+      <button class="suggestion" onclick="fillInput(this)">Fetch the latest 5 emails from my inbox</button>
+      <button class="suggestion" onclick="fillInput(this)">Send an email to recipient@example.com with the subject 'Hello' and body 'Hello World'</button>
     </div></div></div>`;
 }
 
