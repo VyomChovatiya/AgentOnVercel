@@ -5,22 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bonaparte AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Styrene+A:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0d0d0d;
-      --surface: #161616;
-      --border: #2a2a2a;
-      --accent: #7fff6e;
-      --accent-dim: rgba(127,255,110,0.12);
-      --text: #e8e8e8;
-      --text-dim: #666;
-      --text-mid: #999;
-      --user-bg: #1e1e1e;
-      --mono: 'IBM Plex Mono', monospace;
-      --sans: 'Inter', sans-serif;
+      --bg: #1c1c1c;
+      --surface: #2a2a2a;
+      --surface2: #323232;
+      --border: #3d3d3d;
+      --accent: #cc9b7a;
+      --text: #ececec;
+      --text-dim: #8a8a8a;
+      --text-mid: #b4b4b4;
+      --user-bg: #2a2a2a;
+      --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --radius: 12px;
     }
 
     body {
@@ -29,64 +29,140 @@
       font-family: var(--sans);
       height: 100dvh;
       display: flex;
-      flex-direction: column;
       overflow: hidden;
     }
 
-    header {
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: #161616;
+      border-right: 1px solid var(--border);
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 24px;
-      border-bottom: 1px solid var(--border);
+      flex-direction: column;
       flex-shrink: 0;
+      padding: 16px 12px;
+      gap: 4px;
     }
 
-    .logo {
-      font-family: var(--mono);
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--accent);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .status {
+    .sidebar-logo {
       display: flex;
       align-items: center;
-      gap: 7px;
-      font-size: 12px;
-      color: var(--text-mid);
-      font-family: var(--mono);
+      gap: 10px;
+      padding: 8px 10px 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
     }
 
-    .dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--text-dim);
-      transition: background 0.3s;
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1c1c1c;
     }
-    .dot.online { background: var(--accent); }
+
+    .logo-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .sidebar-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      padding: 4px 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 8px;
+    }
+
+    .new-chat-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-mid);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      width: 100%;
+      text-align: left;
+    }
+
+    .new-chat-btn:hover { background: var(--surface); color: var(--text); }
+
+    .model-picker {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .model-picker label {
+      font-size: 11px;
+      color: var(--text-dim);
+      display: block;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
 
     .model-select {
+      width: 100%;
       background: var(--surface);
       border: 1px solid var(--border);
       color: var(--text-mid);
-      font-family: var(--mono);
-      font-size: 11px;
-      padding: 5px 10px;
-      border-radius: 4px;
+      font-family: var(--sans);
+      font-size: 12px;
+      padding: 7px 10px;
+      border-radius: 8px;
       cursor: pointer;
       outline: none;
     }
     .model-select:focus { border-color: var(--accent); }
 
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    .dot.online { background: #4caf6e; }
+
+    .status-text {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* Main */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
     #messages {
       flex: 1;
       overflow-y: auto;
-      padding: 32px 0;
-      scroll-behavior: smooth;
+      padding: 40px 0 20px;
     }
 
     #messages::-webkit-scrollbar { width: 4px; }
@@ -94,108 +170,183 @@
     #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
     .message-wrap {
-      max-width: 760px;
+      max-width: 720px;
       margin: 0 auto;
       padding: 0 24px;
     }
 
     .message {
-      margin-bottom: 28px;
-      animation: fadeUp 0.2s ease;
+      margin-bottom: 32px;
+      animation: fadeUp 0.18s ease;
     }
 
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(6px); }
+      from { opacity: 0; transform: translateY(5px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    .message-meta {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--text-dim);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
     }
 
-    .message.user .message-meta { color: var(--accent); opacity: 0.7; }
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .avatar.user { background: #4a4a4a; color: var(--text); }
+    .avatar.assistant { background: var(--accent); color: #1c1c1c; }
+
+    .role-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
 
     .message-body {
       font-size: 15px;
-      line-height: 1.7;
+      line-height: 1.75;
       color: var(--text);
+      padding-left: 36px;
     }
 
-    .message.user .message-body {
-      background: var(--user-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px 18px;
-    }
+    /* Markdown styles */
+    .message-body p { margin-bottom: 12px; }
+    .message-body p:last-child { margin-bottom: 0; }
 
-    .message.assistant .message-body {
-      border-left: 2px solid var(--accent);
-      padding-left: 16px;
-    }
+    .message-body h1 { font-size: 20px; font-weight: 600; margin: 20px 0 10px; color: var(--text); }
+    .message-body h2 { font-size: 17px; font-weight: 600; margin: 18px 0 8px; color: var(--text); }
+    .message-body h3 { font-size: 15px; font-weight: 600; margin: 14px 0 6px; color: var(--text); }
 
-    .message-body h1, .message-body h2, .message-body h3 {
-      color: var(--text);
-      margin: 16px 0 8px;
-      font-size: 15px;
-      font-weight: 500;
+    .message-body ul, .message-body ol {
+      padding-left: 22px;
+      margin-bottom: 12px;
     }
-
-    .message-body p { margin-bottom: 10px; }
-    .message-body ul, .message-body ol { padding-left: 20px; margin-bottom: 10px; }
-    .message-body li { margin-bottom: 4px; }
+    .message-body li { margin-bottom: 5px; line-height: 1.65; }
+    .message-body li:last-child { margin-bottom: 0; }
 
     .message-body code {
-      font-family: var(--mono);
+      font-family: ui-monospace, "SF Mono", monospace;
       font-size: 13px;
-      background: #1a1a1a;
+      background: #252525;
       border: 1px solid var(--border);
       padding: 2px 6px;
-      border-radius: 3px;
-      color: var(--accent);
+      border-radius: 4px;
+      color: #e8b89a;
     }
 
     .message-body pre {
-      background: #111;
+      background: #1a1a1a;
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 16px;
+      border-radius: 10px;
+      padding: 16px 18px;
       overflow-x: auto;
-      margin: 12px 0;
+      margin: 14px 0;
+      position: relative;
     }
+
+    .pre-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .lang-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: ui-monospace, monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .copy-btn {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .copy-btn:hover { color: var(--text); }
 
     .message-body pre code {
       background: none;
       border: none;
       padding: 0;
       color: #ccc;
+      font-size: 13px;
+      line-height: 1.6;
     }
 
-    .message-body strong { color: #fff; font-weight: 500; }
+    .message-body strong { font-weight: 600; color: #fff; }
+    .message-body em { font-style: italic; }
 
-    .thinking {
+    .message-body blockquote {
+      border-left: 3px solid var(--accent);
+      padding: 8px 14px;
+      margin: 12px 0;
+      color: var(--text-mid);
+      background: #222;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .message-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 14px;
+    }
+    .message-body th, .message-body td {
+      padding: 8px 12px;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .message-body th {
+      background: #222;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .message-body td { color: var(--text-mid); }
+
+    .message-body a { color: var(--accent); text-decoration: none; }
+    .message-body a:hover { text-decoration: underline; }
+
+    .message-body hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    /* Thinking */
+    .thinking-body {
+      padding-left: 36px;
       display: flex;
       align-items: center;
       gap: 10px;
       color: var(--text-dim);
-      font-family: var(--mono);
-      font-size: 12px;
-      padding-left: 18px;
-      border-left: 2px solid var(--border);
+      font-size: 14px;
     }
 
     .thinking-dots span {
       display: inline-block;
-      width: 4px;
-      height: 4px;
+      width: 5px;
+      height: 5px;
       background: var(--accent);
       border-radius: 50%;
       margin: 0 2px;
       animation: bounce 1.2s infinite;
+      opacity: 0.5;
     }
     .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
     .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
@@ -205,25 +356,24 @@
       40% { transform: translateY(-5px); opacity: 1; }
     }
 
+    /* Empty state */
     .empty-state {
-      max-width: 760px;
-      margin: 60px auto 0;
+      max-width: 720px;
+      margin: 40px auto 0;
       padding: 0 24px;
     }
 
     .empty-state h2 {
-      font-family: var(--mono);
-      font-size: 22px;
+      font-size: 26px;
       font-weight: 500;
-      color: var(--accent);
-      margin-bottom: 10px;
+      color: var(--text);
+      margin-bottom: 6px;
     }
 
     .empty-state p {
       color: var(--text-dim);
       font-size: 14px;
-      line-height: 1.6;
-      margin-bottom: 28px;
+      margin-bottom: 32px;
     }
 
     .suggestions {
@@ -235,60 +385,94 @@
     .suggestion {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px 14px;
+      border-radius: 10px;
+      padding: 14px 16px;
       font-size: 13px;
       color: var(--text-mid);
       cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
       text-align: left;
+      line-height: 1.5;
     }
 
     .suggestion:hover {
       border-color: var(--accent);
       color: var(--text);
+      background: var(--surface2);
     }
 
+    /* Input area */
     .input-area {
-      border-top: 1px solid var(--border);
-      padding: 16px 24px;
+      padding: 12px 24px 20px;
       flex-shrink: 0;
     }
 
     .input-wrap {
-      max-width: 760px;
+      max-width: 720px;
       margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.15s;
+    }
+
+    .input-wrap:focus-within { border-color: #555; }
+
+    .endpoint-row {
+      padding: 8px 14px 0;
       display: flex;
-      gap: 10px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .endpoint-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    #endpoint {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      outline: none;
+      min-width: 0;
+    }
+
+    #endpoint:focus { color: var(--text-mid); }
+
+    .textarea-row {
+      display: flex;
       align-items: flex-end;
+      padding: 10px 14px;
+      gap: 10px;
     }
 
     #input {
       flex: 1;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      background: none;
+      border: none;
       color: var(--text);
       font-family: var(--sans);
-      font-size: 14px;
-      padding: 12px 16px;
+      font-size: 15px;
       resize: none;
       outline: none;
-      min-height: 48px;
-      max-height: 160px;
-      line-height: 1.5;
-      transition: border-color 0.15s;
+      min-height: 28px;
+      max-height: 200px;
+      line-height: 1.6;
     }
 
-    #input:focus { border-color: var(--accent); }
     #input::placeholder { color: var(--text-dim); }
 
     #send {
       background: var(--accent);
       border: none;
       border-radius: 8px;
-      width: 48px;
-      height: 48px;
+      width: 34px;
+      height: 34px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -298,137 +482,245 @@
     }
 
     #send:hover { opacity: 0.85; }
-    #send:disabled { opacity: 0.3; cursor: not-allowed; }
+    #send:disabled { opacity: 0.25; cursor: not-allowed; }
 
-    #send svg { color: #000; }
-
-    .config-bar {
-      max-width: 760px;
-      margin: 0 auto 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .config-label {
-      font-family: var(--mono);
+    .hint {
+      max-width: 720px;
+      margin: 6px auto 0;
+      text-align: center;
       font-size: 11px;
       color: var(--text-dim);
     }
 
-    #endpoint {
-      flex: 1;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text-mid);
-      font-family: var(--mono);
-      font-size: 11px;
-      padding: 5px 10px;
-      outline: none;
+    .error-bubble {
+      background: #2d1a1a;
+      border: 1px solid #5a2a2a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #f08080;
     }
 
-    #endpoint:focus { border-color: var(--accent); color: var(--text); }
-
-    .error-msg {
-      color: #ff6b6b;
-      font-family: var(--mono);
-      font-size: 12px;
-      border-left: 2px solid #ff6b6b;
-      padding-left: 12px;
-    }
-
-    @media (max-width: 600px) {
+    @media (max-width: 700px) {
+      .sidebar { display: none; }
       .suggestions { grid-template-columns: 1fr; }
-      header { padding: 12px 16px; }
-      .input-area { padding: 12px 16px; }
     }
   </style>
 </head>
 <body>
 
-<header>
-  <span class="logo">Bonaparte AI</span>
-  <div style="display:flex;align-items:center;gap:14px">
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">B</div>
+    <span class="logo-text">Bonaparte AI</span>
+  </div>
+
+  <button class="new-chat-btn" onclick="newChat()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    New chat
+  </button>
+
+  <div class="model-picker">
+    <label>Model</label>
     <select class="model-select" id="modelSelect">
       <option value="qwen/qwen3.5-9b">qwen/qwen3.5-9b</option>
       <option value="google/gemma-4-12b-qat">google/gemma-4-12b-qat</option>
       <option value="google/gemma-4-e4b">google/gemma-4-e4b</option>
     </select>
-    <div class="status">
+    <div class="status-row">
       <div class="dot" id="statusDot"></div>
-      <span id="statusText">connecting</span>
+      <span class="status-text" id="statusText">Connecting...</span>
     </div>
   </div>
-</header>
+</aside>
 
-<div id="messages">
-  <div class="message-wrap">
-    <div class="empty-state" id="emptyState">
-      <h2>What do you need?</h2>
-      <p>Connected to your local LM Studio via proxy. Web search and scraping are available.</p>
-      <div class="suggestions">
-        <button class="suggestion" onclick="fillInput(this)">Search for the latest AI news today</button>
-        <button class="suggestion" onclick="fillInput(this)">Scrape and summarize https://news.ycombinator.com</button>
-        <button class="suggestion" onclick="fillInput(this)">What's happening in the stock market today?</button>
-        <button class="suggestion" onclick="fillInput(this)">Find recent research papers on LLMs</button>
+<div class="main">
+  <div id="messages">
+    <div class="message-wrap">
+      <div class="empty-state" id="emptyState">
+        <h2>What can I help with?</h2>
+        <p>Connected to your local LM Studio. Web search and scraping are available.</p>
+        <div class="suggestions">
+          <button class="suggestion" onclick="fillInput(this)">Search for the latest AI news today and summarize the top story</button>
+          <button class="suggestion" onclick="fillInput(this)">Scrape and summarize https://news.ycombinator.com</button>
+          <button class="suggestion" onclick="fillInput(this)">What's happening in the stock market today?</button>
+          <button class="suggestion" onclick="fillInput(this)">Find recent research on large language models</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<div class="input-area">
-  <div class="config-bar">
-    <span class="config-label">proxy</span>
-    <input type="text" id="endpoint" value="https://flakily-vaseline-catchy.ngrok-free.dev" placeholder="https://your-ngrok-url.ngrok-free.app" spellcheck="false">
-  </div>
-  <div class="input-wrap">
-    <textarea id="input" placeholder="Ask anything..." rows="1"></textarea>
-    <button id="send" onclick="sendMessage()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="22" y1="2" x2="11" y2="13"></line>
-        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-      </svg>
-    </button>
+  <div class="input-area">
+    <div class="input-wrap">
+      <div class="endpoint-row">
+        <span class="endpoint-label">Proxy</span>
+        <input type="text" id="endpoint" value="https://flakily-vaseline-catchy.ngrok-free.dev" spellcheck="false" placeholder="https://your-ngrok-url.ngrok-free.app">
+      </div>
+      <div class="textarea-row">
+        <textarea id="input" placeholder="Message Bonaparte AI..." rows="1"></textarea>
+        <button id="send" onclick="sendMessage()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1c1c1c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <p class="hint">Bonaparte AI can make mistakes. Verify important information.</p>
   </div>
 </div>
 
 <script>
+  // Minimal markdown parser - handles real formatting correctly
+  function parseMarkdown(text) {
+    const lines = text.split('\n');
+    let html = '';
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Fenced code block
+      if (line.startsWith('```')) {
+        const lang = line.slice(3).trim();
+        let code = '';
+        i++;
+        while (i < lines.length && !lines[i].startsWith('```')) {
+          code += lines[i] + '\n';
+          i++;
+        }
+        const escaped = code.trimEnd()
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const copyId = 'code-' + Math.random().toString(36).slice(2);
+        html += `<pre><div class="pre-header"><span class="lang-label">${lang || 'code'}</span><button class="copy-btn" onclick="copyCode('${copyId}')">Copy</button></div><code id="${copyId}">${escaped}</code></pre>`;
+        i++;
+        continue;
+      }
+
+      // Headings
+      const h3 = line.match(/^### (.+)/);
+      const h2 = line.match(/^## (.+)/);
+      const h1 = line.match(/^# (.+)/);
+      if (h3) { html += `<h3>${inlineFormat(h3[1])}</h3>`; i++; continue; }
+      if (h2) { html += `<h2>${inlineFormat(h2[1])}</h2>`; i++; continue; }
+      if (h1) { html += `<h1>${inlineFormat(h1[1])}</h1>`; i++; continue; }
+
+      // HR
+      if (line.match(/^---+$/)) { html += '<hr>'; i++; continue; }
+
+      // Blockquote
+      if (line.startsWith('> ')) {
+        let bq = '';
+        while (i < lines.length && lines[i].startsWith('> ')) {
+          bq += inlineFormat(lines[i].slice(2)) + ' ';
+          i++;
+        }
+        html += `<blockquote>${bq.trim()}</blockquote>`;
+        continue;
+      }
+
+      // Unordered list
+      if (line.match(/^[-*] /)) {
+        html += '<ul>';
+        while (i < lines.length && lines[i].match(/^[-*] /)) {
+          html += `<li>${inlineFormat(lines[i].slice(2))}</li>`;
+          i++;
+        }
+        html += '</ul>';
+        continue;
+      }
+
+      // Ordered list
+      if (line.match(/^\d+\. /)) {
+        html += '<ol>';
+        while (i < lines.length && lines[i].match(/^\d+\. /)) {
+          html += `<li>${inlineFormat(lines[i].replace(/^\d+\. /, ''))}</li>`;
+          i++;
+        }
+        html += '</ol>';
+        continue;
+      }
+
+      // Table
+      if (line.includes('|') && lines[i+1] && lines[i+1].match(/^\|?[\s\-|]+\|?$/)) {
+        const headers = line.split('|').filter(c => c.trim()).map(c => `<th>${inlineFormat(c.trim())}</th>`).join('');
+        html += `<table><tr>${headers}</tr>`;
+        i += 2; // skip separator
+        while (i < lines.length && lines[i].includes('|')) {
+          const cells = lines[i].split('|').filter(c => c.trim()).map(c => `<td>${inlineFormat(c.trim())}</td>`).join('');
+          html += `<tr>${cells}</tr>`;
+          i++;
+        }
+        html += '</table>';
+        continue;
+      }
+
+      // Empty line - paragraph break
+      if (line.trim() === '') { i++; continue; }
+
+      // Paragraph
+      let para = '';
+      while (i < lines.length && lines[i].trim() !== '' && !lines[i].match(/^[#>\-*`]/) && !lines[i].match(/^\d+\. /)) {
+        para += lines[i] + ' ';
+        i++;
+      }
+      if (para.trim()) html += `<p>${inlineFormat(para.trim())}</p>`;
+    }
+
+    return html;
+  }
+
+  function inlineFormat(text) {
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+
+  function copyCode(id) {
+    const el = document.getElementById(id);
+    if (el) navigator.clipboard.writeText(el.textContent);
+  }
+
   const messagesEl = document.getElementById('messages');
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('send');
-  const emptyState = document.getElementById('emptyState');
-  const statusDot = document.getElementById('statusDot');
-  const statusText = document.getElementById('statusText');
   const endpointEl = document.getElementById('endpoint');
   const modelSelect = document.getElementById('modelSelect');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
 
   let history = [];
   let isLoading = false;
 
-  // Auto-resize textarea
   inputEl.addEventListener('input', () => {
     inputEl.style.height = 'auto';
-    inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
   });
 
   inputEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
-  function fillInput(btn) {
-    inputEl.value = btn.textContent;
-    inputEl.focus();
+  function fillInput(btn) { inputEl.value = btn.textContent.trim(); inputEl.focus(); }
+
+  function newChat() {
+    history = [];
+    messagesEl.innerHTML = `<div class="message-wrap"><div class="empty-state" id="emptyState">
+      <h2>What can I help with?</h2>
+      <p>Connected to your local LM Studio. Web search and scraping are available.</p>
+      <div class="suggestions">
+        <button class="suggestion" onclick="fillInput(this)">Search for the latest AI news today and summarize the top story</button>
+        <button class="suggestion" onclick="fillInput(this)">Scrape and summarize https://news.ycombinator.com</button>
+        <button class="suggestion" onclick="fillInput(this)">What's happening in the stock market today?</button>
+        <button class="suggestion" onclick="fillInput(this)">Find recent research on large language models</button>
+      </div></div></div>`;
   }
 
-  function getEndpoint() {
-    return endpointEl.value.trim().replace(/\/$/, '');
-  }
+  function getEndpoint() { return endpointEl.value.trim().replace(/\/$/, ''); }
 
-  // Check connection on load and endpoint change
   async function checkStatus() {
     try {
       const res = await fetch(getEndpoint() + '/v1/models', {
@@ -437,49 +729,42 @@
       if (res.ok) {
         const data = await res.json();
         statusDot.classList.add('online');
-        statusText.textContent = 'online';
-        // Populate model list
+        statusText.textContent = 'Connected';
         if (data.data?.length) {
           modelSelect.innerHTML = data.data
             .filter(m => !m.id.includes('embed'))
             .map(m => `<option value="${m.id}">${m.id}</option>`)
             .join('');
         }
-      } else {
-        throw new Error();
-      }
+      } else throw new Error();
     } catch {
       statusDot.classList.remove('online');
-      statusText.textContent = 'offline';
+      statusText.textContent = 'Offline';
     }
   }
 
   endpointEl.addEventListener('change', checkStatus);
   checkStatus();
 
-  function appendMessage(role, content) {
-    emptyState?.remove();
-
+  function createMessage(role) {
+    document.getElementById('emptyState')?.remove();
     const wrap = document.createElement('div');
     wrap.className = 'message-wrap';
-
     const msg = document.createElement('div');
     msg.className = `message ${role}`;
-
-    const meta = document.createElement('div');
-    meta.className = 'message-meta';
-    meta.textContent = role === 'user' ? 'you' : 'assistant';
-
+    const header = document.createElement('div');
+    header.className = 'message-header';
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${role}`;
+    avatar.textContent = role === 'user' ? 'Y' : 'B';
+    const label = document.createElement('div');
+    label.className = 'role-label';
+    label.textContent = role === 'user' ? 'You' : 'Bonaparte AI';
+    header.appendChild(avatar);
+    header.appendChild(label);
     const body = document.createElement('div');
     body.className = 'message-body';
-
-    if (role === 'assistant') {
-      body.innerHTML = formatMarkdown(content);
-    } else {
-      body.textContent = content;
-    }
-
-    msg.appendChild(meta);
+    msg.appendChild(header);
     msg.appendChild(body);
     wrap.appendChild(msg);
     messagesEl.appendChild(wrap);
@@ -488,97 +773,65 @@
   }
 
   function showThinking() {
-    emptyState?.remove();
+    document.getElementById('emptyState')?.remove();
     const wrap = document.createElement('div');
     wrap.className = 'message-wrap';
     wrap.id = 'thinking';
-
-    const msg = document.createElement('div');
-    msg.className = 'message assistant';
-
-    const meta = document.createElement('div');
-    meta.className = 'message-meta';
-    meta.textContent = 'assistant';
-
-    const body = document.createElement('div');
-    body.className = 'thinking';
-    body.innerHTML = `<span>thinking</span><div class="thinking-dots"><span></span><span></span><span></span></div>`;
-
-    msg.appendChild(meta);
-    msg.appendChild(body);
-    wrap.appendChild(msg);
+    wrap.innerHTML = `<div class="message assistant">
+      <div class="message-header">
+        <div class="avatar assistant">B</div>
+        <div class="role-label">Bonaparte AI</div>
+      </div>
+      <div class="thinking-body">
+        <span>Thinking</span>
+        <div class="thinking-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>`;
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-
-  function removeThinking() {
-    document.getElementById('thinking')?.remove();
-  }
-
-  function formatMarkdown(text) {
-    return text
-      .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-      .replace(/^\- (.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>\n?)+/g, s => `<ul>${s}</ul>`)
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/^(?!<[huplc])(.+)$/gm, '$1')
-      .replace(/\n/g, '<br>');
   }
 
   async function sendMessage() {
     const text = inputEl.value.trim();
     if (!text || isLoading) return;
-
     isLoading = true;
     sendBtn.disabled = true;
     inputEl.value = '';
     inputEl.style.height = 'auto';
 
-    appendMessage('user', text);
+    const userBody = createMessage('user');
+    userBody.textContent = text;
     history.push({ role: 'user', content: text });
     showThinking();
 
     try {
       const res = await fetch(getEndpoint() + '/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': '1'
-        },
-        body: JSON.stringify({
-          model: modelSelect.value,
-          messages: history,
-          timeout: 120
-        })
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        body: JSON.stringify({ model: modelSelect.value, messages: history })
       });
-
       const data = await res.json();
-      removeThinking();
+      document.getElementById('thinking')?.remove();
 
       if (data.error) {
-        appendMessage('assistant', `Error: ${data.error.message || JSON.stringify(data.error)}`);
+        const body = createMessage('assistant');
+        body.innerHTML = `<div class="error-bubble">Error: ${data.error.message || JSON.stringify(data.error)}</div>`;
       } else {
         const reply = data.choices[0].message.content;
         history.push({ role: 'assistant', content: reply });
-        appendMessage('assistant', reply);
+        const body = createMessage('assistant');
+        body.innerHTML = parseMarkdown(reply);
       }
     } catch (err) {
-      removeThinking();
-      const wrap = document.createElement('div');
-      wrap.className = 'message-wrap';
-      wrap.innerHTML = `<div class="message assistant"><div class="message-meta">error</div><div class="error-msg">Could not reach proxy at ${getEndpoint()}. Make sure ngrok and uvicorn are running.</div></div>`;
-      messagesEl.appendChild(wrap);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      document.getElementById('thinking')?.remove();
+      const body = createMessage('assistant');
+      body.innerHTML = `<div class="error-bubble">Could not reach proxy at <code>${getEndpoint()}</code>. Make sure ngrok and uvicorn are running.</div>`;
     }
 
     isLoading = false;
     sendBtn.disabled = false;
     inputEl.focus();
+    messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 </script>
 </body>
