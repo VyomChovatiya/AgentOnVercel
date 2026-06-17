@@ -329,11 +329,13 @@ REGISTRY = {
     "update_email_status": update_email_status
 }
 
-def run_tools(messages, model, extra):
+def run_tools(messages, model, extra, max_iterations=6):
     """Run tool loop (non-streaming), return final messages + response object."""
     all_tools = TOOLS
+    iterations = 0
 
     while True:
+        iterations += 1
         response = lm.chat.completions.create(
             model=model,
             messages=messages,
@@ -346,6 +348,20 @@ def run_tools(messages, model, extra):
         if finish_reason != "tool_calls" or not msg.tool_calls:
             return messages, response
 
+        if iterations >= max_iterations:
+            # Force a stop: don't execute more tools, ask model to answer with what it has
+            print(f"[run_tools] Hit max iterations ({max_iterations}), forcing final answer")
+            messages.append({
+                "role": "user",
+                "content": "You have used enough tools. Stop calling tools now and answer the user's original question directly using the information you already have."
+            })
+            final_response = lm.chat.completions.create(
+                model=model,
+                messages=messages,
+                **{k: v for k, v in extra.items() if k != "stream"}  # no tools passed here, forces text response
+            )
+            return messages, final_response
+
         messages.append(msg.model_dump())
         for tc in msg.tool_calls:
             fn_name = tc.function.name
@@ -356,7 +372,7 @@ def run_tools(messages, model, extra):
                 result = {"error": str(e)}
             print(f"[tool] {fn_name} -> {str(result)[:200]}")
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": json.dumps(result)})
-
+            
 async def stream_response(reasoning, content):
     """Stream pre-generated reasoning and content as SSE chunks."""
     # First emit reasoning block if we have it
