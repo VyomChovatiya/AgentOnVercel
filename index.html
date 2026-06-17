@@ -1,11 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agent Blue</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     :root {
       --bg: #1c1c1c;
       --surface: #2a2a2a;
@@ -19,278 +27,982 @@
       --mono: ui-monospace, "SF Mono", monospace;
       --radius: 12px;
     }
-    body { background: var(--bg); color: var(--text); font-family: var(--sans); height: 100dvh; display: flex; overflow: hidden; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      height: 100dvh;
+      display: flex;
+      overflow: hidden;
+    }
 
     /* Sidebar */
-    .sidebar { width: 256px; background: #161616; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; padding: 14px 10px; gap: 4px; }
-    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 6px 10px 14px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
-    .logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #1c1c1c; }
-    .logo-text { font-size: 14px; font-weight: 500; }
-    .new-chat-btn { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-mid); font-size: 13px; cursor: pointer; transition: background 0.15s, color 0.15s; width: 100%; text-align: left; font-family: var(--sans); }
-    .new-chat-btn:hover { background: var(--surface); color: var(--text); }
-    .model-picker { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); }
-    .model-picker label { font-size: 11px; color: var(--text-dim); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
-    .model-select { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text-mid); font-family: var(--sans); font-size: 12px; padding: 7px 10px; border-radius: 8px; cursor: pointer; outline: none; }
-    .model-select:focus { border-color: var(--accent); }
-    .status-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); transition: background 0.3s; flex-shrink: 0; }
-    .dot.online { background: #4caf6e; }
-    .status-text { font-size: 11px; color: var(--text-dim); }
+    .sidebar {
+      width: 256px;
+      background: #161616;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      padding: 14px 10px;
+      gap: 4px;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #1c1c1c;
+    }
+
+    .logo-text {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .new-chat-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-mid);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      width: 100%;
+      text-align: left;
+      font-family: var(--sans);
+    }
+
+    .new-chat-btn:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .model-picker {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .model-picker label {
+      font-size: 11px;
+      color: var(--text-dim);
+      display: block;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .model-select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-mid);
+      font-family: var(--sans);
+      font-size: 12px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .model-select:focus {
+      border-color: var(--accent);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+
+    .dot.online {
+      background: #4caf6e;
+    }
+
+    .status-text {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
 
     /* Main */
-    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-    #messages { flex: 1; overflow-y: auto; padding: 40px 0 20px; }
-    #messages::-webkit-scrollbar { width: 4px; }
-    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-    .message-wrap { max-width: 720px; margin: 0 auto; padding: 0 24px; }
-    .message { margin-bottom: 32px; animation: fadeUp 0.18s ease; }
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-    .message-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
-    .avatar.user { background: #4a4a4a; color: var(--text); }
-    .avatar.assistant { background: var(--accent); color: #1c1c1c; }
-    .role-label { font-size: 13px; font-weight: 500; }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px 0 20px;
+    }
+
+    #messages::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #messages::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .message-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .message {
+      margin-bottom: 32px;
+      animation: fadeUp 0.18s ease;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .avatar.user {
+      background: #4a4a4a;
+      color: var(--text);
+    }
+
+    .avatar.assistant {
+      background: var(--accent);
+      color: #1c1c1c;
+    }
+
+    .role-label {
+      font-size: 13px;
+      font-weight: 500;
+    }
 
     /* Thinking block */
-    .thinking-block { margin-left: 36px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-    .thinking-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #1f1f1f; cursor: pointer; border: none; width: 100%; text-align: left; color: var(--text-dim); font-size: 12px; font-family: var(--sans); transition: background 0.15s; }
-    .thinking-toggle:hover { background: #252525; }
-    .thinking-toggle svg { transition: transform 0.2s; flex-shrink: 0; }
-    .thinking-toggle.open svg { transform: rotate(90deg); }
-    .thinking-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: 0.6; animation: pulse 1.5s infinite; flex-shrink: 0; }
-    @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
-    .thinking-content { padding: 12px; background: #191919; font-size: 13px; color: var(--text-dim); line-height: 1.65; font-style: italic; display: none; white-space: pre-wrap; border-top: 1px solid var(--border); }
-    .thinking-content.visible { display: block; }
+    .thinking-block {
+      margin-left: 36px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .thinking-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #1f1f1f;
+      cursor: pointer;
+      border: none;
+      width: 100%;
+      text-align: left;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-family: var(--sans);
+      transition: background 0.15s;
+    }
+
+    .thinking-toggle:hover {
+      background: #252525;
+    }
+
+    .thinking-toggle svg {
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+
+    .thinking-toggle.open svg {
+      transform: rotate(90deg);
+    }
+
+    .thinking-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.6;
+      animation: pulse 1.5s infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 0.3;
+      }
+
+      50% {
+        opacity: 0.9;
+      }
+    }
+
+    .thinking-content {
+      padding: 12px;
+      background: #191919;
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.65;
+      font-style: italic;
+      display: none;
+      white-space: pre-wrap;
+      border-top: 1px solid var(--border);
+    }
+
+    .thinking-content.visible {
+      display: block;
+    }
 
     /* Message body */
-    .message-body { font-size: 15px; line-height: 1.75; color: var(--text); padding-left: 36px; }
-    .message-body p { margin-bottom: 12px; }
-    .message-body p:last-child { margin-bottom: 0; }
-    .message-body h1 { font-size: 20px; font-weight: 600; margin: 20px 0 10px; }
-    .message-body h2 { font-size: 17px; font-weight: 600; margin: 18px 0 8px; }
-    .message-body h3 { font-size: 15px; font-weight: 600; margin: 14px 0 6px; }
-    .message-body ul, .message-body ol { padding-left: 22px; margin-bottom: 12px; }
-    .message-body li { margin-bottom: 5px; line-height: 1.65; }
-    .message-body code { font-family: var(--mono); font-size: 13px; background: #252525; border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; color: #e8b89a; }
-    .message-body pre { background: #1a1a1a; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 14px 0; }
-    .pre-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-    .lang-label { font-size: 11px; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; }
-    .copy-btn { font-size: 11px; color: var(--text-dim); background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color 0.15s; }
-    .copy-btn:hover { color: var(--text); }
-    .message-body pre code { background: none; border: none; padding: 0; color: #ccc; font-size: 13px; line-height: 1.6; }
-    .message-body strong { font-weight: 600; color: #fff; }
-    .message-body em { font-style: italic; }
-    .message-body blockquote { border-left: 3px solid var(--accent); padding: 8px 14px; margin: 12px 0; color: var(--text-mid); background: #222; border-radius: 0 6px 6px 0; }
-    .message-body table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
-    .message-body th, .message-body td { padding: 8px 12px; text-align: left; border: 1px solid var(--border); }
-    .message-body th { background: #222; font-weight: 500; }
-    .message-body td { color: var(--text-mid); }
-    .message-body a { color: var(--accent); text-decoration: none; }
-    .message-body a:hover { text-decoration: underline; }
-    .message-body hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .message-body {
+      font-size: 15px;
+      line-height: 1.75;
+      color: var(--text);
+      padding-left: 36px;
+    }
+
+    .message-body p {
+      margin-bottom: 12px;
+    }
+
+    .message-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    .message-body h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 20px 0 10px;
+    }
+
+    .message-body h2 {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 18px 0 8px;
+    }
+
+    .message-body h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 14px 0 6px;
+    }
+
+    .message-body ul,
+    .message-body ol {
+      padding-left: 22px;
+      margin-bottom: 12px;
+    }
+
+    .message-body li {
+      margin-bottom: 5px;
+      line-height: 1.65;
+    }
+
+    .message-body code {
+      font-family: var(--mono);
+      font-size: 13px;
+      background: #252525;
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #e8b89a;
+    }
+
+    .message-body pre {
+      background: #1a1a1a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      margin: 14px 0;
+    }
+
+    .pre-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .lang-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .copy-btn {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+
+    .copy-btn:hover {
+      color: var(--text);
+    }
+
+    .message-body pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #ccc;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .message-body strong {
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .message-body em {
+      font-style: italic;
+    }
+
+    .message-body blockquote {
+      border-left: 3px solid var(--accent);
+      padding: 8px 14px;
+      margin: 12px 0;
+      color: var(--text-mid);
+      background: #222;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .message-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 14px;
+    }
+
+    .message-body th,
+    .message-body td {
+      padding: 8px 12px;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+
+    .message-body th {
+      background: #222;
+      font-weight: 500;
+    }
+
+    .message-body td {
+      color: var(--text-mid);
+    }
+
+    .message-body a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .message-body a:hover {
+      text-decoration: underline;
+    }
+
+    .message-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
 
     /* Streaming cursor */
-    .cursor { display: inline-block; width: 2px; height: 1em; background: var(--accent); margin-left: 2px; vertical-align: text-bottom; animation: blink 0.8s infinite; }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: var(--accent);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 0.8s infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+    }
 
     /* Tool status */
-    .tool-status { margin-left: 36px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
-    .tool-spinner { width: 12px; height: 12px; border: 1.5px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .tool-status {
+      margin-left: 36px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .tool-spinner {
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
 
     /* Empty state */
-    .empty-state { max-width: 720px; margin: 40px auto 0; padding: 0 24px; }
-    .empty-state h2 { font-size: 26px; font-weight: 500; margin-bottom: 6px; }
-    .empty-state p { color: var(--text-dim); font-size: 14px; margin-bottom: 32px; }
-    .suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .suggestion { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--text-mid); cursor: pointer; transition: border-color 0.15s, color 0.15s; text-align: left; line-height: 1.5; font-family: var(--sans); }
-    .suggestion:hover { border-color: var(--accent); color: var(--text); }
+    .empty-state {
+      max-width: 720px;
+      margin: 40px auto 0;
+      padding: 0 24px;
+    }
+
+    .empty-state h2 {
+      font-size: 26px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .empty-state p {
+      color: var(--text-dim);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .suggestions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .suggestion {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      text-align: left;
+      line-height: 1.5;
+      font-family: var(--sans);
+    }
+
+    .suggestion:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
 
     /* Input */
-    .input-area { padding: 12px 24px 20px; flex-shrink: 0; }
-    .input-wrap { max-width: 720px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); transition: border-color 0.15s; }
-    .input-wrap:focus-within { border-color: #555; }
-    .endpoint-row { padding: 8px 14px 0; display: flex; align-items: center; gap: 8px; }
-    .endpoint-label { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
-    #endpoint { flex: 1; background: none; border: none; color: var(--text-dim); font-family: var(--mono); font-size: 11px; outline: none; min-width: 0; }
-    #endpoint:focus { color: var(--text-mid); }
-    .textarea-row { display: flex; align-items: flex-end; padding: 10px 14px; gap: 10px; }
-    #input { flex: 1; background: none; border: none; color: var(--text); font-family: var(--sans); font-size: 15px; resize: none; outline: none; min-height: 28px; max-height: 200px; line-height: 1.6; }
-    #input::placeholder { color: var(--text-dim); }
-    #send { background: var(--accent); border: none; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity 0.15s; }
-    #send:hover { opacity: 0.85; }
-    #send:disabled { opacity: 0.25; cursor: not-allowed; }
-    #attach-btn { background: transparent; border: none; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, color 0.15s; color: var(--text-dim); }
-    #attach-btn:hover { background: var(--surface2); color: var(--text); }
-    .attachments-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 14px 10px; border-bottom: 1px solid var(--border); }
-    .attachment-pill { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px; color: var(--text-mid); }
-    .attachment-pill .remove-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0 2px; }
-    .attachment-pill .remove-btn:hover { color: #f08080; }
-    .hint { max-width: 720px; margin: 6px auto 0; text-align: center; font-size: 11px; color: var(--text-dim); }
-    .error-bubble { background: #2d1a1a; border: 1px solid #5a2a2a; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #f08080; }
+    .input-area {
+      padding: 12px 24px 20px;
+      flex-shrink: 0;
+    }
 
-    @media (max-width: 700px) { .sidebar { display: none; } .suggestions { grid-template-columns: 1fr; } }
+    .input-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.15s;
+    }
+
+    .input-wrap:focus-within {
+      border-color: #555;
+    }
+
+    .endpoint-row {
+      padding: 8px 14px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .endpoint-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    #endpoint {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 11px;
+      outline: none;
+      min-width: 0;
+    }
+
+    #endpoint:focus {
+      color: var(--text-mid);
+    }
+
+    .textarea-row {
+      display: flex;
+      align-items: flex-end;
+      padding: 10px 14px;
+      gap: 10px;
+    }
+
+    #input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      resize: none;
+      outline: none;
+      min-height: 28px;
+      max-height: 200px;
+      line-height: 1.6;
+    }
+
+    #input::placeholder {
+      color: var(--text-dim);
+    }
+
+    #send {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+
+    #send:hover {
+      opacity: 0.85;
+    }
+
+    #send:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+
+    #attach-btn {
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+      color: var(--text-dim);
+    }
+
+    #attach-btn:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .attachments-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 6px 14px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .attachment-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      color: var(--text-mid);
+    }
+
+    .attachment-pill .remove-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 2px;
+    }
+
+    .attachment-pill .remove-btn:hover {
+      color: #f08080;
+    }
+
+    .hint {
+      max-width: 720px;
+      margin: 6px auto 0;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .image-preview-row {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 14px 0;
+    }
+
+    .image-thumb {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .image-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .image-thumb .remove-img {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 16px;
+      height: 16px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      font-size: 11px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #attach-img-btn,
+    #attach-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      border-radius: 6px;
+      flex-shrink: 0;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    #attach-img-btn:hover,
+    #attach-btn:hover {
+      color: var(--text);
+      background: var(--surface2);
+    }
+
+    .msg-image {
+      max-width: 220px;
+      border-radius: 8px;
+      margin-top: 8px;
+      display: block;
+      border: 1px solid var(--border);
+    }
+
+    .error-bubble {
+      background: #2d1a1a;
+      border: 1px solid #5a2a2a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #f08080;
+    }
+
+    @media (max-width: 700px) {
+      .sidebar {
+        display: none;
+      }
+
+      .suggestions {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
+
 <body>
 
-<aside class="sidebar">
-  <div class="sidebar-logo">
-    <div class="logo-icon">B</div>
-    <span class="logo-text">Agent Blue</span>
-  </div>
-  <button class="new-chat-btn" onclick="newChat()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    New chat
-  </button>
-  <div class="model-picker">
-    <label>Model</label>
-    <select class="model-select" id="modelSelect">
-      <option value="qwen/qwen3.5-9b">qwen/qwen3.5-9b</option>
-      <option value="google/gemma-4-12b-qat">google/gemma-4-12b-qat</option>
-      <option value="google/gemma-4-e4b">google/gemma-4-e4b</option>
-    </select>
-    <div class="status-row">
-      <div class="dot" id="statusDot"></div>
-      <span class="status-text" id="statusText">Connecting...</span>
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">B</div>
+      <span class="logo-text">Agent Blue</span>
     </div>
-  </div>
-</aside>
+    <button class="new-chat-btn" onclick="newChat()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      New chat
+    </button>
+    <div class="model-picker">
+      <label>Model</label>
+      <select class="model-select" id="modelSelect">
+        <option value="qwen/qwen3.5-9b">qwen/qwen3.5-9b</option>
+        <option value="google/gemma-4-12b-qat">google/gemma-4-12b-qat</option>
+        <option value="google/gemma-4-e4b">google/gemma-4-e4b</option>
+      </select>
+      <div class="status-row">
+        <div class="dot" id="statusDot"></div>
+        <span class="status-text" id="statusText">Connecting...</span>
+      </div>
+    </div>
+  </aside>
 
-<div class="main">
-  <div id="messages">
-    <div class="message-wrap">
-      <div class="empty-state" id="emptyState">
-        <h2>What can I help with?</h2>
-        <p>Connected to your local LM Studio. Web search, Exa, Jina reader, and Email tools are available.</p>
-        <div class="suggestions">
-          <button class="suggestion" onclick="fillInput(this)">Use Exa search to find recent breakthroughs in speculative decoding</button>
-          <button class="suggestion" onclick="fillInput(this)">Read https://news.ycombinator.com using Jina reader and summarize it</button>
-          <button class="suggestion" onclick="fillInput(this)">Fetch the latest 5 emails from my inbox</button>
-          <button class="suggestion" onclick="fillInput(this)">Send an email to recipient@example.com with the subject 'Hello' and body 'Hello World'</button>
+  <div class="main">
+    <div id="messages">
+      <div class="message-wrap">
+        <div class="empty-state" id="emptyState">
+          <h2>What can I help with?</h2>
+          <p>Connected to your local LM Studio. Web search, Exa, Jina reader, and Email tools are available.</p>
+          <div class="suggestions">
+            <button class="suggestion" onclick="fillInput(this)">Use Exa search to find recent breakthroughs in
+              speculative decoding</button>
+            <button class="suggestion" onclick="fillInput(this)">Read https://news.ycombinator.com using Jina reader and
+              summarize it</button>
+            <button class="suggestion" onclick="fillInput(this)">Fetch the latest 5 emails from my inbox</button>
+            <button class="suggestion" onclick="fillInput(this)">Send an email to recipient@example.com with the subject
+              'Hello' and body 'Hello World'</button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="input-area">
-    <div class="input-wrap">
-      <div class="endpoint-row">
-        <span class="endpoint-label">Proxy</span>
-        <input type="text" id="endpoint" value="https://flakily-vaseline-catchy.ngrok-free.dev" spellcheck="false">
+    <div class="input-area">
+      <div class="input-wrap">
+        <div class="endpoint-row">
+          <span class="endpoint-label">Proxy</span>
+          <input type="text" id="endpoint" value="https://flakily-vaseline-catchy.ngrok-free.dev" spellcheck="false">
+        </div>
+        <div class="attachments-row" id="attachmentsRow" style="display: none;"></div>
+        <div class="image-preview-row" id="imagePreviewRow"></div>
+        <div class="textarea-row">
+          <input type="file" id="fileInput" multiple style="display:none;" onchange="handleFileSelect(event)">
+          <button id="attach-btn" type="button" title="Attach Document"
+            onclick="document.getElementById('fileInput').click()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
+              </path>
+            </svg>
+          </button>
+          <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple
+            style="display:none;" onchange="handleImageSelect(event)">
+          <button id="attach-img-btn" type="button" title="Attach Image"
+            onclick="document.getElementById('imageInput').click()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          </button>
+          <textarea id="input" placeholder="Message Agent Blue..." rows="1"></textarea>
+          <button id="send" onclick="sendMessage()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1c1c1c" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5" />
+              <polyline points="5 12 12 5 19 12" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <div class="attachments-row" id="attachmentsRow" style="display: none;"></div>
-      <div class="textarea-row">
-        <input type="file" id="fileInput" multiple style="display:none;" onchange="handleFileSelect(event)">
-        <button id="attach-btn" type="button" title="Attach Document" onclick="document.getElementById('fileInput').click()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
-          </svg>
-        </button>
-        <textarea id="input" placeholder="Message Agent Blue..." rows="1"></textarea>
-        <button id="send" onclick="sendMessage()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1c1c1c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
-          </svg>
-        </button>
-      </div>
+      <p class="hint">Agent Blue can make mistakes. Verify important information.</p>
     </div>
-    <p class="hint">Agent Blue can make mistakes. Verify important information.</p>
   </div>
-</div>
 
-<script>
-// ── Markdown parser ──────────────────────────────────────────────
-function parseMarkdown(text) {
-  const lines = text.split('\n');
-  let html = '', i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-    if (line.startsWith('```')) {
-      const lang = line.slice(3).trim();
-      let code = ''; i++;
-      while (i < lines.length && !lines[i].startsWith('```')) { code += lines[i] + '\n'; i++; }
-      const esc = code.trimEnd().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      const id = 'c' + Math.random().toString(36).slice(2);
-      html += `<pre><div class="pre-header"><span class="lang-label">${lang||'code'}</span><button class="copy-btn" onclick="copyCode('${id}')">Copy</button></div><code id="${id}">${esc}</code></pre>`;
-      i++; continue;
-    }
-    const h3=line.match(/^### (.+)/), h2=line.match(/^## (.+)/), h1=line.match(/^# (.+)/);
-    if (h3) { html+=`<h3>${fmt(h3[1])}</h3>`; i++; continue; }
-    if (h2) { html+=`<h2>${fmt(h2[1])}</h2>`; i++; continue; }
-    if (h1) { html+=`<h1>${fmt(h1[1])}</h1>`; i++; continue; }
-    if (line.match(/^---+$/)) { html+='<hr>'; i++; continue; }
-    if (line.startsWith('> ')) {
-      let bq='';
-      while (i<lines.length && lines[i].startsWith('> ')) { bq+=fmt(lines[i].slice(2))+' '; i++; }
-      html+=`<blockquote>${bq.trim()}</blockquote>`; continue;
-    }
-    if (line.match(/^[-*] /)) {
-      html+='<ul>';
-      while (i<lines.length && lines[i].match(/^[-*] /)) { html+=`<li>${fmt(lines[i].slice(2))}</li>`; i++; }
-      html+='</ul>'; continue;
-    }
-    if (line.match(/^\d+\. /)) {
-      html+='<ol>';
-      while (i<lines.length && lines[i].match(/^\d+\. /)) { html+=`<li>${fmt(lines[i].replace(/^\d+\. /,''))}</li>`; i++; }
-      html+='</ol>'; continue;
-    }
-    if (line.includes('|') && lines[i+1] && lines[i+1].match(/^\|?[\s\-|]+\|?$/)) {
-      const headers=line.split('|').filter(c=>c.trim()).map(c=>`<th>${fmt(c.trim())}</th>`).join('');
-      html+=`<table><tr>${headers}</tr>`; i+=2;
-      while (i<lines.length && lines[i].includes('|')) {
-        const cells=lines[i].split('|').filter(c=>c.trim()).map(c=>`<td>${fmt(c.trim())}</td>`).join('');
-        html+=`<tr>${cells}</tr>`; i++;
+  <script>
+    // ── Markdown parser ──────────────────────────────────────────────
+    function parseMarkdown(text) {
+      const lines = text.split('\n');
+      let html = '', i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+        if (line.startsWith('```')) {
+          const lang = line.slice(3).trim();
+          let code = ''; i++;
+          while (i < lines.length && !lines[i].startsWith('```')) { code += lines[i] + '\n'; i++; }
+          const esc = code.trimEnd().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const id = 'c' + Math.random().toString(36).slice(2);
+          html += `<pre><div class="pre-header"><span class="lang-label">${lang || 'code'}</span><button class="copy-btn" onclick="copyCode('${id}')">Copy</button></div><code id="${id}">${esc}</code></pre>`;
+          i++; continue;
+        }
+        const h3 = line.match(/^### (.+)/), h2 = line.match(/^## (.+)/), h1 = line.match(/^# (.+)/);
+        if (h3) { html += `<h3>${fmt(h3[1])}</h3>`; i++; continue; }
+        if (h2) { html += `<h2>${fmt(h2[1])}</h2>`; i++; continue; }
+        if (h1) { html += `<h1>${fmt(h1[1])}</h1>`; i++; continue; }
+        if (line.match(/^---+$/)) { html += '<hr>'; i++; continue; }
+        if (line.startsWith('> ')) {
+          let bq = '';
+          while (i < lines.length && lines[i].startsWith('> ')) { bq += fmt(lines[i].slice(2)) + ' '; i++; }
+          html += `<blockquote>${bq.trim()}</blockquote>`; continue;
+        }
+        if (line.match(/^[-*] /)) {
+          html += '<ul>';
+          while (i < lines.length && lines[i].match(/^[-*] /)) { html += `<li>${fmt(lines[i].slice(2))}</li>`; i++; }
+          html += '</ul>'; continue;
+        }
+        if (line.match(/^\d+\. /)) {
+          html += '<ol>';
+          while (i < lines.length && lines[i].match(/^\d+\. /)) { html += `<li>${fmt(lines[i].replace(/^\d+\. /, ''))}</li>`; i++; }
+          html += '</ol>'; continue;
+        }
+        if (line.includes('|') && lines[i + 1] && lines[i + 1].match(/^\|?[\s\-|]+\|?$/)) {
+          const headers = line.split('|').filter(c => c.trim()).map(c => `<th>${fmt(c.trim())}</th>`).join('');
+          html += `<table><tr>${headers}</tr>`; i += 2;
+          while (i < lines.length && lines[i].includes('|')) {
+            const cells = lines[i].split('|').filter(c => c.trim()).map(c => `<td>${fmt(c.trim())}</td>`).join('');
+            html += `<tr>${cells}</tr>`; i++;
+          }
+          html += '</table>'; continue;
+        }
+        if (line.trim() === '') { i++; continue; }
+        let para = '';
+        if (i < lines.length) {
+          para += lines[i] + ' ';
+          i++;
+          while (i < lines.length && lines[i].trim() !== '' && !lines[i].match(/^[#>\-*`]/) && !lines[i].match(/^\d+\. /)) {
+            para += lines[i] + ' '; i++;
+          }
+        }
+        if (para.trim()) html += `<p>${fmt(para.trim())}</p>`;
       }
-      html+='</table>'; continue;
+      return html;
     }
-    if (line.trim()==='') { i++; continue; }
-    let para='';
-    if (i < lines.length) {
-      para += lines[i] + ' ';
-      i++;
-      while (i<lines.length && lines[i].trim()!=='' && !lines[i].match(/^[#>\-*`]/) && !lines[i].match(/^\d+\. /)) {
-        para+=lines[i]+' '; i++;
-      }
+
+    function fmt(t) {
+      return t
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     }
-    if (para.trim()) html+=`<p>${fmt(para.trim())}</p>`;
-  }
-  return html;
-}
 
-function fmt(t) {
-  return t
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/`([^`]+)`/g,'<code>$1</code>')
-    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
-}
+    function copyCode(id) { navigator.clipboard.writeText(document.getElementById(id).textContent); }
 
-function copyCode(id) { navigator.clipboard.writeText(document.getElementById(id).textContent); }
+    // ── State ────────────────────────────────────────────────────────
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const endpointEl = document.getElementById('endpoint');
+    const modelSelect = document.getElementById('modelSelect');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    let history = [], isLoading = false;
 
-// ── State ────────────────────────────────────────────────────────
-const messagesEl = document.getElementById('messages');
-const inputEl = document.getElementById('input');
-const sendBtn = document.getElementById('send');
-const endpointEl = document.getElementById('endpoint');
-const modelSelect = document.getElementById('modelSelect');
-const statusDot = document.getElementById('statusDot');
-const statusText = document.getElementById('statusText');
-let history = [], isLoading = false;
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
+    });
+    inputEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+    function fillInput(btn) { inputEl.value = btn.textContent.trim(); inputEl.focus(); }
+    function getEndpoint() { return endpointEl.value.trim().replace(/\/$/, ''); }
 
-inputEl.addEventListener('input', () => {
-  inputEl.style.height = 'auto';
-  inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
-});
-inputEl.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-function fillInput(btn) { inputEl.value = btn.textContent.trim(); inputEl.focus(); }
-function getEndpoint() { return endpointEl.value.trim().replace(/\/$/, ''); }
-
-function newChat() {
-  history = [];
-  messagesEl.innerHTML = `<div class="message-wrap"><div class="empty-state" id="emptyState">
+    function newChat() {
+      history = [];
+      messagesEl.innerHTML = `<div class="message-wrap"><div class="empty-state" id="emptyState">
     <h2>What can I help with?</h2>
     <p>Connected to your local LM Studio. Web search, Exa, Jina reader, and Email tools are available.</p>
     <div class="suggestions">
@@ -299,111 +1011,149 @@ function newChat() {
       <button class="suggestion" onclick="fillInput(this)">Fetch the latest 5 emails from my inbox</button>
       <button class="suggestion" onclick="fillInput(this)">Send an email to recipient@example.com with the subject 'Hello' and body 'Hello World'</button>
     </div></div></div>`;
-}
-
-async function checkStatus() {
-  try {
-    const res = await fetch(getEndpoint()+'/v1/models', { headers: {'ngrok-skip-browser-warning':'1'} });
-    if (res.ok) {
-      const data = await res.json();
-      statusDot.classList.add('online'); statusText.textContent = 'Connected';
-      if (data.data?.length) {
-        modelSelect.innerHTML = data.data.filter(m=>!m.id.includes('embed')).map(m=>`<option value="${m.id}">${m.id}</option>`).join('');
-      }
-    } else throw new Error();
-  } catch { statusDot.classList.remove('online'); statusText.textContent = 'Offline'; }
-}
-endpointEl.addEventListener('change', checkStatus);
-checkStatus();
-
-// ── Document Input State & Handlers ──────────────────────────────
-const attachmentsRow = document.getElementById('attachmentsRow');
-let attachedFiles = [];
-
-async function handleFileSelect(event) {
-  const files = Array.from(event.target.files);
-  if (!files.length) return;
-
-  for (const file of files) {
-    if (attachedFiles.some(f => f.name === file.name)) continue;
-
-    const name = file.name;
-    const lowerName = name.toLowerCase();
-
-    addAttachmentPill(name, true);
-
-    try {
-      let content = "";
-      if (lowerName.endsWith('.pdf') || lowerName.endsWith('.docx')) {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch(getEndpoint() + '/v1/parse-document', {
-          method: 'POST',
-          body: formData
-        });
-        if (!res.ok) throw new Error("Backend parsing failed");
-        const data = await res.json();
-        content = data.content;
-      } else {
-        content = await readFileAsText(file);
-      }
-      attachedFiles.push({ name, content });
-      updateAttachmentsUI();
-    } catch (err) {
-      console.error(err);
-      alert("Error parsing file: " + name + ". " + err.message);
-      removePillByName(name);
     }
-  }
-  event.target.value = "";
-}
 
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-  });
-}
+    async function checkStatus() {
+      try {
+        const res = await fetch(getEndpoint() + '/v1/models', { headers: { 'ngrok-skip-browser-warning': '1' } });
+        if (res.ok) {
+          const data = await res.json();
+          statusDot.classList.add('online'); statusText.textContent = 'Connected';
+          if (data.data?.length) {
+            modelSelect.innerHTML = data.data.filter(m => !m.id.includes('embed')).map(m => `<option value="${m.id}">${m.id}</option>`).join('');
+          }
+        } else throw new Error();
+      } catch { statusDot.classList.remove('online'); statusText.textContent = 'Offline'; }
+    }
+    endpointEl.addEventListener('change', checkStatus);
+    checkStatus();
 
-function addAttachmentPill(name, isLoading = false) {
-  attachmentsRow.style.display = 'flex';
-  const pill = document.createElement('div');
-  pill.className = 'attachment-pill';
-  pill.setAttribute('data-name', name);
-  pill.innerHTML = `
+    // ── Image Input State & Handlers ─────────────────────────────────
+    const imagePreviewRow = document.getElementById('imagePreviewRow');
+    let attachedImages = []; // { name, dataUrl }
+
+    function handleImageSelect(event) {
+      const files = Array.from(event.target.files);
+      files.forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          attachedImages.push({ name: file.name, dataUrl: reader.result });
+          renderImagePreviews();
+        };
+        reader.readAsDataURL(file); // base64 data URL, e.g. data:image/png;base64,....
+      });
+      event.target.value = "";
+    }
+
+    function renderImagePreviews() {
+      imagePreviewRow.innerHTML = '';
+      if (attachedImages.length === 0) {
+        imagePreviewRow.style.display = 'none';
+        return;
+      }
+      imagePreviewRow.style.display = 'flex';
+      attachedImages.forEach((img, idx) => {
+        const thumb = document.createElement('div');
+        thumb.className = 'image-thumb';
+        thumb.innerHTML = `<img src="${img.dataUrl}" alt="${img.name}"><button class="remove-img" type="button" onclick="removeImage(${idx})">&times;</button>`;
+        imagePreviewRow.appendChild(thumb);
+      });
+    }
+
+    function removeImage(idx) {
+      attachedImages.splice(idx, 1);
+      renderImagePreviews();
+    }
+
+    // ── Document Input State & Handlers ──────────────────────────────
+    const attachmentsRow = document.getElementById('attachmentsRow');
+    let attachedFiles = [];
+
+    async function handleFileSelect(event) {
+      const files = Array.from(event.target.files);
+      if (!files.length) return;
+
+      for (const file of files) {
+        if (attachedFiles.some(f => f.name === file.name)) continue;
+
+        const name = file.name;
+        const lowerName = name.toLowerCase();
+
+        addAttachmentPill(name, true);
+
+        try {
+          let content = "";
+          if (lowerName.endsWith('.pdf') || lowerName.endsWith('.docx')) {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch(getEndpoint() + '/v1/parse-document', {
+              method: 'POST',
+              body: formData
+            });
+            if (!res.ok) throw new Error("Backend parsing failed");
+            const data = await res.json();
+            content = data.content;
+          } else {
+            content = await readFileAsText(file);
+          }
+          attachedFiles.push({ name, content });
+          updateAttachmentsUI();
+        } catch (err) {
+          console.error(err);
+          alert("Error parsing file: " + name + ". " + err.message);
+          removePillByName(name);
+        }
+      }
+      event.target.value = "";
+    }
+
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file);
+      });
+    }
+
+    function addAttachmentPill(name, isLoading = false) {
+      attachmentsRow.style.display = 'flex';
+      const pill = document.createElement('div');
+      pill.className = 'attachment-pill';
+      pill.setAttribute('data-name', name);
+      pill.innerHTML = `
     <span>${name} ${isLoading ? '(reading...)' : ''}</span>
     <button class="remove-btn" type="button" onclick="removeAttachment('${name.replace(/'/g, "\\'")}')">&times;</button>
   `;
-  attachmentsRow.appendChild(pill);
-}
+      attachmentsRow.appendChild(pill);
+    }
 
-function removePillByName(name) {
-  const pill = attachmentsRow.querySelector(`.attachment-pill[data-name="${name}"]`);
-  if (pill) pill.remove();
-  if (attachmentsRow.children.length === 0) {
-    attachmentsRow.style.display = 'none';
-  }
-}
+    function removePillByName(name) {
+      const pill = attachmentsRow.querySelector(`.attachment-pill[data-name="${name}"]`);
+      if (pill) pill.remove();
+      if (attachmentsRow.children.length === 0) {
+        attachmentsRow.style.display = 'none';
+      }
+    }
 
-function removeAttachment(name) {
-  attachedFiles = attachedFiles.filter(f => f.name !== name);
-  removePillByName(name);
-}
+    function removeAttachment(name) {
+      attachedFiles = attachedFiles.filter(f => f.name !== name);
+      removePillByName(name);
+    }
 
-function updateAttachmentsUI() {
-  attachmentsRow.innerHTML = '';
-  if (attachedFiles.length === 0) {
-    attachmentsRow.style.display = 'none';
-    return;
-  }
-  attachmentsRow.style.display = 'flex';
-  attachedFiles.forEach(file => {
-    const pill = document.createElement('div');
-    pill.className = 'attachment-pill';
-    pill.setAttribute('data-name', file.name);
-    pill.innerHTML = `
+    function updateAttachmentsUI() {
+      attachmentsRow.innerHTML = '';
+      if (attachedFiles.length === 0) {
+        attachmentsRow.style.display = 'none';
+        return;
+      }
+      attachmentsRow.style.display = 'flex';
+      attachedFiles.forEach(file => {
+        const pill = document.createElement('div');
+        pill.className = 'attachment-pill';
+        pill.setAttribute('data-name', file.name);
+        pill.innerHTML = `
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px; flex-shrink:0;">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
         <polyline points="14 2 14 8 20 8"></polyline>
@@ -411,196 +1161,225 @@ function updateAttachmentsUI() {
       <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${file.name}</span>
       <button class="remove-btn" type="button" onclick="removeAttachment('${file.name.replace(/'/g, "\\'")}')">&times;</button>
     `;
-    attachmentsRow.appendChild(pill);
-  });
-}
+        attachmentsRow.appendChild(pill);
+      });
+    }
 
-// ── Message rendering ────────────────────────────────────────────
-function createMessageEl(role) {
-  document.getElementById('emptyState')?.remove();
-  const wrap = document.createElement('div'); wrap.className = 'message-wrap';
-  const msg = document.createElement('div'); msg.className = `message ${role}`;
-  const header = document.createElement('div'); header.className = 'message-header';
-  const avatar = document.createElement('div'); avatar.className = `avatar ${role}`; avatar.textContent = role==='user'?'Y':'B';
-  const label = document.createElement('div'); label.className = 'role-label'; label.textContent = role==='user'?'You':'Agent Blue';
-  header.appendChild(avatar); header.appendChild(label);
-  msg.appendChild(header); wrap.appendChild(msg); messagesEl.appendChild(wrap);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-  return msg;
-}
+    // ── Message rendering ────────────────────────────────────────────
+    function createMessageEl(role) {
+      document.getElementById('emptyState')?.remove();
+      const wrap = document.createElement('div'); wrap.className = 'message-wrap';
+      const msg = document.createElement('div'); msg.className = `message ${role}`;
+      const header = document.createElement('div'); header.className = 'message-header';
+      const avatar = document.createElement('div'); avatar.className = `avatar ${role}`; avatar.textContent = role === 'user' ? 'Y' : 'B';
+      const label = document.createElement('div'); label.className = 'role-label'; label.textContent = role === 'user' ? 'You' : 'Agent Blue';
+      header.appendChild(avatar); header.appendChild(label);
+      msg.appendChild(header); wrap.appendChild(msg); messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return msg;
+    }
 
-function addThinkingBlock(msg, reasoning) {
-  const block = document.createElement('div'); block.className = 'thinking-block';
-  const toggle = document.createElement('button'); toggle.className = 'thinking-toggle';
-  toggle.innerHTML = `<div class="thinking-dot"></div><span>Thought for a moment</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
-  const content = document.createElement('div'); content.className = 'thinking-content';
-  content.textContent = reasoning;
-  toggle.onclick = () => { toggle.classList.toggle('open'); content.classList.toggle('visible'); };
-  block.appendChild(toggle); block.appendChild(content); msg.appendChild(block);
-}
+    function addThinkingBlock(msg, reasoning) {
+      const block = document.createElement('div'); block.className = 'thinking-block';
+      const toggle = document.createElement('button'); toggle.className = 'thinking-toggle';
+      toggle.innerHTML = `<div class="thinking-dot"></div><span>Thought for a moment</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+      const content = document.createElement('div'); content.className = 'thinking-content';
+      content.textContent = reasoning;
+      toggle.onclick = () => { toggle.classList.toggle('open'); content.classList.toggle('visible'); };
+      block.appendChild(toggle); block.appendChild(content); msg.appendChild(block);
+    }
 
-function addBody(msg) {
-  const body = document.createElement('div'); body.className = 'message-body';
-  msg.appendChild(body); return body;
-}
+    function addBody(msg) {
+      const body = document.createElement('div'); body.className = 'message-body';
+      msg.appendChild(body); return body;
+    }
 
-// ── Send ─────────────────────────────────────────────────────────
-async function sendMessage() {
-  const text = inputEl.value.trim();
-  if (!text || isLoading) return;
-  isLoading = true; sendBtn.disabled = true;
-  inputEl.value = ''; inputEl.style.height = 'auto';
+    // ── Send ─────────────────────────────────────────────────────────
+    async function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text && attachedImages.length === 0 || isLoading) return;
+      isLoading = true; sendBtn.disabled = true;
+      inputEl.value = ''; inputEl.style.height = 'auto';
 
-  // Prepare full prompt incorporating document content
-  let promptText = text;
-  if (attachedFiles.length > 0) {
-    const filePrompts = attachedFiles.map(f => `[Uploaded Document: ${f.name}]\n${f.content}\n[End of Document: ${f.name}]`).join('\n\n');
-    promptText = `${filePrompts}\n\n${text}`;
-  }
+      // Prepare full prompt incorporating document content
+      let promptText = text;
+      if (attachedFiles.length > 0) {
+        const filePrompts = attachedFiles.map(f => `[Uploaded Document: ${f.name}]\n${f.content}\n[End of Document: ${f.name}]`).join('\n\n');
+        promptText = `${filePrompts}\n\n${text}`;
+      }
 
-  // User message
-  const userMsg = createMessageEl('user');
-  const userBody = addBody(userMsg);
-  userBody.textContent = text;
+      // Build the actual message content sent to the model.
+      // If images are attached, content must be an array of content blocks
+      // (OpenAI/LM Studio vision format), not a plain string.
+      const currentImages = [...attachedImages];
+      let messageContent;
+      if (currentImages.length > 0) {
+        messageContent = [];
+        if (promptText) messageContent.push({ type: 'text', text: promptText });
+        currentImages.forEach(img => {
+          messageContent.push({ type: 'image_url', image_url: { url: img.dataUrl } });
+        });
+      } else {
+        messageContent = promptText;
+      }
 
-  // Append attachment pills to user bubble
-  if (attachedFiles.length > 0) {
-    const attachWrap = document.createElement('div');
-    attachWrap.className = 'user-message-attachments';
-    attachWrap.style.display = 'flex';
-    attachWrap.style.flexWrap = 'wrap';
-    attachWrap.style.gap = '6px';
-    attachWrap.style.marginTop = '8px';
-    attachedFiles.forEach(f => {
-      const p = document.createElement('div');
-      p.className = 'attachment-pill';
-      p.style.background = 'var(--surface)';
-      p.innerHTML = `
+      // User message
+      const userMsg = createMessageEl('user');
+      const userBody = addBody(userMsg);
+      userBody.textContent = text;
+
+      // Show attached images in the user bubble
+      if (currentImages.length > 0) {
+        currentImages.forEach(img => {
+          const imgEl = document.createElement('img');
+          imgEl.src = img.dataUrl;
+          imgEl.className = 'msg-image';
+          imgEl.alt = img.name;
+          userBody.appendChild(imgEl);
+        });
+      }
+
+      // Append attachment pills to user bubble
+      if (attachedFiles.length > 0) {
+        const attachWrap = document.createElement('div');
+        attachWrap.className = 'user-message-attachments';
+        attachWrap.style.display = 'flex';
+        attachWrap.style.flexWrap = 'wrap';
+        attachWrap.style.gap = '6px';
+        attachWrap.style.marginTop = '8px';
+        attachedFiles.forEach(f => {
+          const p = document.createElement('div');
+          p.className = 'attachment-pill';
+          p.style.background = 'var(--surface)';
+          p.innerHTML = `
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px; flex-shrink:0;">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
         </svg>
         <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${f.name}</span>
       `;
-      attachWrap.appendChild(p);
-    });
-    userBody.appendChild(attachWrap);
-  }
-
-  history.push({ role: 'user', content: promptText });
-
-  // Clear attachments
-  const currentFiles = [...attachedFiles];
-  attachedFiles = [];
-  updateAttachmentsUI();
-
-  // Tool status indicator
-  document.getElementById('emptyState')?.remove();
-  const statusWrap = document.createElement('div'); statusWrap.className = 'message-wrap'; statusWrap.id = 'tool-status';
-  statusWrap.innerHTML = `<div class="tool-status"><div class="tool-spinner"></div><span id="tool-status-text">Thinking...</span></div>`;
-  messagesEl.appendChild(statusWrap);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-
-  try {
-    const res = await fetch(getEndpoint()+'/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
-      body: JSON.stringify({ model: modelSelect.value, messages: history, stream: true })
-    });
-
-    document.getElementById('tool-status')?.remove();
-
-    const assistantMsg = createMessageEl('assistant');
-    let reasoning = '', content = '', bodyEl = null, cursor = null;
-    let thinkingBlockEl = null, thinkingContentEl = null, thinkingToggleEl = null;
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
-        try {
-          const chunk = JSON.parse(line.slice(6));
-          const delta = chunk.choices?.[0]?.delta;
-          if (!delta) continue;
-
-          // Streaming Reasoning / Thinking content in real time
-          if (delta.reasoning_content) {
-            if (!thinkingBlockEl) {
-              thinkingBlockEl = document.createElement('div'); thinkingBlockEl.className = 'thinking-block';
-              thinkingToggleEl = document.createElement('button'); thinkingToggleEl.className = 'thinking-toggle open';
-              thinkingToggleEl.innerHTML = `<div class="thinking-dot"></div><span>Thinking...</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
-              thinkingContentEl = document.createElement('div'); thinkingContentEl.className = 'thinking-content visible';
-              thinkingBlockEl.appendChild(thinkingToggleEl); thinkingBlockEl.appendChild(thinkingContentEl);
-              assistantMsg.appendChild(thinkingBlockEl);
-              
-              thinkingToggleEl.onclick = () => {
-                thinkingToggleEl.classList.toggle('open');
-                thinkingContentEl.classList.toggle('visible');
-              };
-            }
-            reasoning += delta.reasoning_content;
-            thinkingContentEl.textContent = reasoning;
-            messagesEl.scrollTop = messagesEl.scrollHeight;
-          }
-
-          // Regular content - stream it
-          if (delta.content) {
-            // Once actual content starts coming, collapse thinking and mark completed
-            if (thinkingToggleEl && thinkingToggleEl.querySelector('span').textContent === 'Thinking...') {
-              thinkingToggleEl.querySelector('span').textContent = 'Thought for a moment';
-              thinkingToggleEl.classList.remove('open');
-              thinkingContentEl.classList.remove('visible');
-            }
-
-            content += delta.content;
-            if (!bodyEl) {
-              bodyEl = addBody(assistantMsg);
-              cursor = document.createElement('span'); cursor.className = 'cursor';
-              bodyEl.appendChild(cursor);
-            }
-            // Update body with parsed markdown, keep cursor at end
-            bodyEl.innerHTML = parseMarkdown(content);
-            bodyEl.appendChild(cursor);
-            messagesEl.scrollTop = messagesEl.scrollHeight;
-          }
-        } catch {}
+          attachWrap.appendChild(p);
+        });
+        userBody.appendChild(attachWrap);
       }
+
+      history.push({ role: 'user', content: messageContent });
+
+      // Clear attachments and images
+      const currentFiles = [...attachedFiles];
+      attachedFiles = [];
+      updateAttachmentsUI();
+      attachedImages = [];
+      renderImagePreviews();
+
+      // Tool status indicator
+      document.getElementById('emptyState')?.remove();
+      const statusWrap = document.createElement('div'); statusWrap.className = 'message-wrap'; statusWrap.id = 'tool-status';
+      statusWrap.innerHTML = `<div class="tool-status"><div class="tool-spinner"></div><span id="tool-status-text">Thinking...</span></div>`;
+      messagesEl.appendChild(statusWrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      try {
+        const res = await fetch(getEndpoint() + '/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+          body: JSON.stringify({ model: modelSelect.value, messages: history, stream: true })
+        });
+
+        document.getElementById('tool-status')?.remove();
+
+        const assistantMsg = createMessageEl('assistant');
+        let reasoning = '', content = '', bodyEl = null, cursor = null;
+        let thinkingBlockEl = null, thinkingContentEl = null, thinkingToggleEl = null;
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
+            try {
+              const chunk = JSON.parse(line.slice(6));
+              const delta = chunk.choices?.[0]?.delta;
+              if (!delta) continue;
+
+              // Streaming Reasoning / Thinking content in real time
+              if (delta.reasoning_content) {
+                if (!thinkingBlockEl) {
+                  thinkingBlockEl = document.createElement('div'); thinkingBlockEl.className = 'thinking-block';
+                  thinkingToggleEl = document.createElement('button'); thinkingToggleEl.className = 'thinking-toggle open';
+                  thinkingToggleEl.innerHTML = `<div class="thinking-dot"></div><span>Thinking...</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+                  thinkingContentEl = document.createElement('div'); thinkingContentEl.className = 'thinking-content visible';
+                  thinkingBlockEl.appendChild(thinkingToggleEl); thinkingBlockEl.appendChild(thinkingContentEl);
+                  assistantMsg.appendChild(thinkingBlockEl);
+
+                  thinkingToggleEl.onclick = () => {
+                    thinkingToggleEl.classList.toggle('open');
+                    thinkingContentEl.classList.toggle('visible');
+                  };
+                }
+                reasoning += delta.reasoning_content;
+                thinkingContentEl.textContent = reasoning;
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              }
+
+              // Regular content - stream it
+              if (delta.content) {
+                // Once actual content starts coming, collapse thinking and mark completed
+                if (thinkingToggleEl && thinkingToggleEl.querySelector('span').textContent === 'Thinking...') {
+                  thinkingToggleEl.querySelector('span').textContent = 'Thought for a moment';
+                  thinkingToggleEl.classList.remove('open');
+                  thinkingContentEl.classList.remove('visible');
+                }
+
+                content += delta.content;
+                if (!bodyEl) {
+                  bodyEl = addBody(assistantMsg);
+                  cursor = document.createElement('span'); cursor.className = 'cursor';
+                  bodyEl.appendChild(cursor);
+                }
+                // Update body with parsed markdown, keep cursor at end
+                bodyEl.innerHTML = parseMarkdown(content);
+                bodyEl.appendChild(cursor);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              }
+            } catch { }
+          }
+        }
+
+        // Final render - remove cursor and finalize thinking block status
+        if (thinkingToggleEl && thinkingToggleEl.querySelector('span').textContent === 'Thinking...') {
+          thinkingToggleEl.querySelector('span').textContent = 'Thought for a moment';
+          thinkingToggleEl.classList.remove('open');
+          thinkingContentEl.classList.remove('visible');
+        }
+        if (bodyEl) { cursor?.remove(); bodyEl.innerHTML = parseMarkdown(content); }
+        else if (reasoning) {
+          // Model only returned reasoning, no content
+          const body = addBody(assistantMsg);
+          body.innerHTML = '<p style="color:var(--text-dim);font-size:13px;font-style:italic">Model finished thinking but returned no response. Try rephrasing.</p>';
+        }
+
+        if (content) history.push({ role: 'assistant', content });
+
+      } catch (err) {
+        document.getElementById('tool-status')?.remove();
+        const msg = createMessageEl('assistant');
+        const body = addBody(msg);
+        body.innerHTML = `<div class="error-bubble">Could not reach proxy at <code>${getEndpoint()}</code>. Check ngrok and uvicorn are running.</div>`;
+      }
+
+      isLoading = false; sendBtn.disabled = false; inputEl.focus();
+      messagesEl.scrollTop = messagesEl.scrollHeight;
     }
-
-    // Final render - remove cursor and finalize thinking block status
-    if (thinkingToggleEl && thinkingToggleEl.querySelector('span').textContent === 'Thinking...') {
-      thinkingToggleEl.querySelector('span').textContent = 'Thought for a moment';
-      thinkingToggleEl.classList.remove('open');
-      thinkingContentEl.classList.remove('visible');
-    }
-    if (bodyEl) { cursor?.remove(); bodyEl.innerHTML = parseMarkdown(content); }
-    else if (reasoning) {
-      // Model only returned reasoning, no content
-      const body = addBody(assistantMsg);
-      body.innerHTML = '<p style="color:var(--text-dim);font-size:13px;font-style:italic">Model finished thinking but returned no response. Try rephrasing.</p>';
-    }
-
-    if (content) history.push({ role: 'assistant', content });
-
-  } catch (err) {
-    document.getElementById('tool-status')?.remove();
-    const msg = createMessageEl('assistant');
-    const body = addBody(msg);
-    body.innerHTML = `<div class="error-bubble">Could not reach proxy at <code>${getEndpoint()}</code>. Check ngrok and uvicorn are running.</div>`;
-  }
-
-  isLoading = false; sendBtn.disabled = false; inputEl.focus();
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-</script>
+  </script>
 </body>
+
 </html>
