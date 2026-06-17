@@ -189,8 +189,7 @@ def send_email(to_email: str, subject: str, body: str):
         msg['Subject'] = subject
         msg['Date'] = formatdate(localtime=True)          # Tells filters the email is fresh
         msg['Message-ID'] = make_msgid(domain=sender_email.split('@')[-1]) # Prevents spoofing flags
-
-msg.attach(MIMEText(body, 'plain'))
+        msg.attach(MIMEText(body, 'plain'))
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(sender_email, sender_password)
