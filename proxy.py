@@ -3,8 +3,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from ddgs import DDGS
-from playwright.sync_api import sync_playwright
-from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor
 import json, time, httpx, asyncio, io, pypdf, docx, os, smtplib, imaplib, email
 from email.header import decode_header
@@ -25,8 +23,23 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "exa_search",
+            "description": "Primary web search tool. Perform a neural search using Exa API and get high-quality, relevant web pages with content highlights. Prefer this over web_search.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The search query optimized for LLMs"},
+                    "num_results": {"type": "integer", "default": 5, "description": "Number of results to return"}
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "web_search",
-            "description": "Search the web and return top results with titles, URLs, and snippets.",
+            "description": "Fallback web search (DuckDuckGo). Use only if exa_search fails or is unavailable.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -41,41 +54,11 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "scrape_url",
-            "description": "Scrape and extract clean text content from a URL.",
+            "description": "Scrape a URL and return clean, LLM-friendly markdown content (via Jina Reader).",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "url": {"type": "string"},
-                    "selector": {"type": "string"}
-                },
-                "required": ["url"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "exa_search",
-            "description": "Perform a neural search using Exa API and get high-quality web pages with highlights.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "The search query optimized for LLMs"},
-                    "num_results": {"type": "integer", "default": 5, "description": "Number of results to return"}
-                },
-                "required": ["query"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "jina_reader",
-            "description": "Fetch clean, markdown-formatted reader content of a specific URL using Jina AI Reader.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "url": {"type": "string", "description": "The URL of the webpage to read"}
+                    "url": {"type": "string", "description": "Full URL to scrape, including https://"}
                 },
                 "required": ["url"]
             }
@@ -142,27 +125,21 @@ def web_search(query: str, max_results: int = 5):
             time.sleep(2)
     return {"error": "Search returned no results after 3 attempts"}
 
-def _scrape_sync(url: str, selector: str = None):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(url, wait_until="domcontentloaded", timeout=15000)
-        html = page.content()
-        browser.close()
-    soup = BeautifulSoup(html, "lxml")
-    for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
-        tag.decompose()
-    if selector:
-        target = soup.select_one(selector)
-        text = target.get_text(separator="\n", strip=True) if target else "Selector not found"
-    else:
-        text = soup.get_text(separator="\n", strip=True)
-    return {"url": url, "content": text[:8000]}
-
-def scrape_url(url: str, selector: str = None):
+def scrape_url(url: str):
+    """Scrape a URL via Jina Reader, returning clean markdown. Replaces the old Playwright-based scraper."""
+    url = url.strip()
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url
     try:
-        future = executor.submit(_scrape_sync, url, selector)
-        return future.result(timeout=20)
+        headers = {"X-Return-Format": "markdown"}
+        api_key = os.environ.get("JINA_API_KEY")
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        jina_url = f"https://r.jina.ai/{url}"
+        resp = httpx.get(jina_url, headers=headers, timeout=25)
+        if resp.status_code != 200:
+            return {"error": f"Jina Reader error ({resp.status_code}): {resp.text[:300]}"}
+        return {"url": url, "content": resp.text[:10000]}
     except Exception as e:
         print(f"[scrape_url error] {url}: {e}")
         return {"error": str(e)}
@@ -194,20 +171,6 @@ def exa_search(query: str, num_results: int = 5):
                 "snippet": r.get("text", "")[:300]
             })
         return {"results": results}
-    except Exception as e:
-        return {"error": str(e)}
-
-def jina_reader(url: str):
-    try:
-        headers = {}
-        api_key = os.environ.get("JINA_API_KEY")
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        jina_url = f"https://r.jina.ai/{url}"
-        resp = httpx.get(jina_url, headers=headers, timeout=20)
-        if resp.status_code != 200:
-            return {"error": f"Jina Reader error: {resp.text}"}
-        return {"url": url, "content": resp.text[:10000]}
     except Exception as e:
         return {"error": str(e)}
 
@@ -323,7 +286,6 @@ REGISTRY = {
     "web_search": web_search,
     "scrape_url": scrape_url,
     "exa_search": exa_search,
-    "jina_reader": jina_reader,
     "send_email": send_email,
     "get_emails": get_emails,
     "update_email_status": update_email_status
