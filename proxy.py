@@ -8,6 +8,7 @@ import json, time, httpx, asyncio, io, pypdf, docx, os, smtplib, imaplib, email
 from email.header import decode_header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formatdate, make_msgid
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -183,10 +184,13 @@ def send_email(to_email: str, subject: str, body: str):
         return {"error": "SMTP credentials not configured. Please set SMTP_SENDER_EMAIL and SMTP_SENDER_PASSWORD."}
     try:
         msg = MIMEMultipart()
-        msg['From'] = sender_email
+        msg['From'] = f"Your Agent Name <{sender_email}>" # Use a clear display name
         msg['To'] = to_email
         msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
+        msg['Date'] = formatdate(localtime=True)          # Tells filters the email is fresh
+        msg['Message-ID'] = make_msgid(domain=sender_email.split('@')[-1]) # Prevents spoofing flags
+
+msg.attach(MIMEText(body, 'plain'))
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(sender_email, sender_password)
