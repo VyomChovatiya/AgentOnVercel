@@ -380,12 +380,55 @@ async def proxy(request: Request):
         wants_stream = body.get("stream", False)
 
         # Always run tool loop non-streaming first to resolve all tool calling
-        messages, response = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: run_tools(list(messages), model, extra)
-        )
+        try:
+            messages, response = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: run_tools(list(messages), model, extra)
+            )
+        except Exception as e:
+            err_msg = str(e)
+            print(f"[proxy] run_tools failed: {err_msg}")
+            error_text = (
+                "The conversation or an attached file/image is too large for this model's "
+                "context window. Try starting a new chat, removing attachments, or using a "
+                "smaller image."
+                if "n_keep" in err_msg or "context length" in err_msg
+                else f"Something went wrong while processing your request: {err_msg}"
+            )
+            if wants_stream:
+                async def error_stream():
+                    chunk = {"choices": [{"delta": {"content": error_text}, "finish_reason": "stop", "index": 0}]}
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                    yield "data: [DONE]\n\n"
+                return StreamingResponse(error_stream(), media_type="text/event-stream")
+            return JSONResponse(
+                status_code=400,
+                content={"error": {"message": error_text}}
+            )
 
         reasoning = getattr(response.choices[0].message, "reasoning_content", None)
         content = response.choices[0].message.content or ""
+
+        # If the model produced reasoning but no actual answer, force one retry
+        # asking explicitly for a final response in plain text (no tools).
+        if not content.strip():
+            print("[proxy] Empty content after run_tools, forcing retry")
+            try:
+                retry_messages = list(messages) + [{
+                    "role": "user",
+                    "content": "Please provide your final answer now, in plain text."
+                }]
+                retry = lm.chat.completions.create(
+                    model=model,
+                    messages=retry_messages,
+                    **{k: v for k, v in extra.items() if k != "stream"}
+                )
+                retry_content = retry.choices[0].message.content or ""
+                if retry_content.strip():
+                    content = retry_content
+                    response = retry
+                    reasoning = getattr(retry.choices[0].message, "reasoning_content", reasoning)
+            except Exception as e:
+                print(f"[proxy] Retry after empty content failed: {e}")
 
         if wants_stream:
             return StreamingResponse(
@@ -398,8 +441,10 @@ async def proxy(request: Request):
             # Inject reasoning into response if present
             if reasoning:
                 result["choices"][0]["message"]["reasoning_content"] = reasoning
+            # Make sure content reflects any retry that happened
+            result["choices"][0]["message"]["content"] = content
             return JSONResponse(result)
-
+    
 @app.post("/v1/parse-document")
 async def parse_document(file: UploadFile = File(...)):
     try:
