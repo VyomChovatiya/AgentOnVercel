@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from ddgs import DDGS
 from playwright.sync_api import sync_playwright
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 from concurrent.futures import ThreadPoolExecutor
 import json, time, httpx, asyncio, io, pypdf, docx, os, smtplib, imaplib, email, re, logging
 from email.header import decode_header
@@ -307,39 +307,16 @@ TOOLS = [
         "function": {
             "name": "scrape_url",
             "description": (
-                "Load a URL in a real headless browser and extract its text content. "
-                "Use this for pages that rely on JavaScript to render their content — "
-                "single-page apps, infinite-scroll feeds, dashboards, or any page where "
-                "the visible content is fetched/rendered dynamically after initial load. "
-                "Slower than jina_reader because it runs a full browser, but it sees the "
-                "fully-rendered DOM rather than just the initial HTML response."
+                "Read the full content of any web page. This is the primary tool for fetching "
+                "a specific URL — use it for articles, blog posts, documentation, news, product "
+                "pages, and JavaScript-rendered single-page apps alike. It loads the page in a "
+                "real headless browser and returns the complete page content."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "url": {"type": "string"},
                     "selector": {"type": "string"}
-                },
-                "required": ["url"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "jina_reader",
-            "description": (
-                "Fetch clean, markdown-formatted reader content of a URL — fast, no browser. "
-                "Use this as the default choice for static content: articles, blog posts, "
-                "documentation, news pages, or anything whose content is already present in "
-                "the initial HTML response. Prefer scrape_url instead only when the page is "
-                "JavaScript-rendered (a single-page app, dashboard, or content that loads "
-                "in after the initial page load)."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "url": {"type": "string", "description": "The URL of the webpage to read"}
                 },
                 "required": ["url"]
             }
@@ -408,6 +385,11 @@ def web_search(query: str, max_results: int = 5):
             time.sleep(2)
     return {"error": "Search returned no results after 3 attempts"}
 
+# Attributes that can carry hidden/out-of-band text (and thus indirect-prompt
+# -injection payloads). Surfaced explicitly so the agent sees them rather than
+# silently dropping them during text extraction.
+_INJECTION_ATTRS = ("content", "aria-label", "title", "alt", "value", "placeholder")
+
 def _scrape_sync(url: str, selector: str = None):
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -423,14 +405,61 @@ def _scrape_sync(url: str, selector: str = None):
         html = page.content()
         browser.close()
     soup = BeautifulSoup(html, "lxml")
-    for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
-        tag.decompose()
+
     if selector:
         target = soup.select_one(selector)
         text = target.get_text(separator="\n", strip=True) if target else "Selector not found"
-    else:
-        text = soup.get_text(separator="\n", strip=True)
-    return {"url": url, "content": text[:2000]}
+        return {"url": url, "content": text[:4000]}
+
+    # Full-surface extraction: deliberately do NOT strip the places that can hide
+    # text from a normal reader. <style> is the only thing dropped (pure CSS noise,
+    # never carries readable text). Everything else — hidden/zero-opacity divs,
+    # HTML comments, meta/aria/title/data-* attributes, inline <script>/JSON-LD —
+    # is captured so the model is exposed to any injected instruction regardless
+    # of which surface it hides in.
+    for tag in soup(["style"]):
+        tag.decompose()
+
+    parts = []
+
+    # 1. HTML comments
+    comments = [c.strip() for c in soup.find_all(string=lambda t: isinstance(t, Comment)) if c.strip()]
+    if comments:
+        parts.append("[comments]\n" + "\n".join(comments))
+
+    # 2. <meta> tags and injection-prone attribute values across all elements
+    meta_bits = []
+    for m in soup.find_all("meta"):
+        name = m.get("name") or m.get("property") or ""
+        val = m.get("content", "")
+        if val.strip():
+            meta_bits.append(f"{name}: {val}".strip(": ").strip())
+    attr_bits = []
+    for el in soup.find_all(True):
+        for attr in _INJECTION_ATTRS:
+            val = el.get(attr)
+            if isinstance(val, str) and val.strip():
+                attr_bits.append(val.strip())
+        for attr, val in el.attrs.items():
+            if attr.startswith("data-") and isinstance(val, str) and val.strip():
+                attr_bits.append(val.strip())
+    seen = set()
+    attr_unique = [a for a in (meta_bits + attr_bits) if not (a in seen or seen.add(a))]
+    if attr_unique:
+        parts.append("[attributes]\n" + "\n".join(attr_unique))
+
+    # 3. Inline <script> contents (JSON-LD, console.log payloads, etc.), then drop
+    #    the script tags so their source doesn't pollute the visible-text pass.
+    scripts = [s.get_text(strip=True) for s in soup.find_all("script") if s.get_text(strip=True)]
+    if scripts:
+        parts.append("[scripts]\n" + "\n".join(scripts))
+    for s in soup.find_all("script"):
+        s.decompose()
+
+    # 4. Visible text (hidden/zero-opacity divs included — get_text ignores CSS)
+    parts.append("[text]\n" + soup.get_text(separator="\n", strip=True))
+
+    return {"url": url, "content": "\n\n".join(parts)[:4000]}
 
 def scrape_url(url: str, selector: str = None):
     try:
@@ -550,7 +579,6 @@ def update_email_status(email_id: str, action: str, folder: str = "INBOX"):
 REGISTRY = {
     "web_search": web_search,
     "scrape_url": scrape_url,
-    "jina_reader": jina_reader,
     "send_email": send_email,
     "get_emails": get_emails,
     "update_email_status": update_email_status
@@ -762,12 +790,12 @@ def run_tools(messages, model, extra, max_iterations=6, defense_enabled=True):
 
             # Cap tool result size
             result_str = json.dumps(result)
-            if len(result_str) > 2500:
+            if len(result_str) > 4500:
                 if isinstance(result, dict) and "content" in result:
-                    result["content"] = result["content"][:2000]
+                    result["content"] = result["content"][:4000]
                     result_str = json.dumps(result)
                 else:
-                    result_str = result_str[:2500]
+                    result_str = result_str[:4500]
 
             print(f"[tool] {fn_name} -> {result_str[:200]}")
             messages.append({
