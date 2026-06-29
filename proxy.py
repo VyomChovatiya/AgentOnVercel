@@ -306,7 +306,14 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "scrape_url",
-            "description": "Scrape and extract clean text content from a URL.",
+            "description": (
+                "Load a URL in a real headless browser and extract its text content. "
+                "Use this for pages that rely on JavaScript to render their content — "
+                "single-page apps, infinite-scroll feeds, dashboards, or any page where "
+                "the visible content is fetched/rendered dynamically after initial load. "
+                "Slower than jina_reader because it runs a full browser, but it sees the "
+                "fully-rendered DOM rather than just the initial HTML response."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -321,7 +328,14 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "jina_reader",
-            "description": "Fetch clean, markdown-formatted reader content of a specific URL using Jina AI Reader.",
+            "description": (
+                "Fetch clean, markdown-formatted reader content of a URL — fast, no browser. "
+                "Use this as the default choice for static content: articles, blog posts, "
+                "documentation, news pages, or anything whose content is already present in "
+                "the initial HTML response. Prefer scrape_url instead only when the page is "
+                "JavaScript-rendered (a single-page app, dashboard, or content that loads "
+                "in after the initial page load)."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -662,6 +676,21 @@ def run_tools(messages, model, extra, max_iterations=6, defense_enabled=True):
 
         if iterations >= max_iterations:
             print(f"[run_tools] Hit max iterations ({max_iterations}), forcing final answer")
+            # The model wanted to call these tools right now — record the attempt
+            # before discarding it, so callers can tell "model tried to comply
+            # with an injected instruction" apart from "model merely mentioned it
+            # in passing while declining." Without this, that signal is lost the
+            # moment we skip execution below.
+            for tc in msg.tool_calls:
+                try:
+                    attempted_args = json.loads(tc.function.arguments)
+                except Exception:
+                    attempted_args = {}
+                defense_log.append({
+                    "event": "attempted_tool_call_discarded",
+                    "tool": tc.function.name,
+                    "args": attempted_args,
+                })
             messages.append({
                 "role": "user",
                 "content": "You have used enough tools. Stop calling tools now and answer "
