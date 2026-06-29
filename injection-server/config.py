@@ -7,8 +7,10 @@ import os
 # Define the central directory for all test outputs
 OUTPUT_DIR = "outputs"
 
-SERVER_HOST = "0.0.0.0"
-SERVER_PORT = 8080
+# Bind host/port. PORT is read from the environment so cloud hosts (Render,
+# Railway, Fly.io, etc.) that inject a $PORT can run this unchanged.
+SERVER_HOST = os.environ.get("HOST", "0.0.0.0")
+SERVER_PORT = int(os.environ.get("PORT", 8080))
 BASE_TARGET_URL = f"http://{SERVER_HOST}:{SERVER_PORT}"
 
 SYSTEM_PROMPT = (

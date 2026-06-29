@@ -27,25 +27,30 @@ cd injection-server
 python server.py
 ```
 
-Then open the index of generated prompt pages:
+Each attack case is served at an innocuous, topic-based slug (the URL must not
+hint that it's an injection test, since the agent sees it). e.g.:
+
+```
+http://localhost:8080/p/iphone-17-review
+http://localhost:8080/p/best-laptops-2026
+http://localhost:8080/p/bitcoin-price
+```
+
+The internal case id (e.g. `semantic_manip_01`) is kept only for the server-side
+audit log. The full **slug → attack-goal** mapping is printed to the console when
+the server starts (operator ground truth) — it is intentionally NOT shown on the
+site. A plain "Knowledge Base" listing of the page links lives at:
 
 ```
 http://localhost:8080/prompts
 ```
 
-Each attack case is its own page, e.g.:
-
-```
-http://localhost:8080/p/semantic_manip_01
-http://localhost:8080/p/strong_blended_narrative_01
-```
-
-The page shows only benign content; the malicious instruction is hidden in the
+Each page shows only benign content; the malicious instruction is hidden in the
 DOM via a stealth vector (default: `hidden_div`). Override the vector per request:
 
 ```
-http://localhost:8080/p/semantic_manip_01?vector=meta_tag
-http://localhost:8080/p/semantic_manip_01?vector=json_ld
+http://localhost:8080/p/iphone-17-review?vector=meta_tag
+http://localhost:8080/p/iphone-17-review?vector=json_ld
 ```
 
 Available vector ids are the keys of `VECTOR_MAP` in `vectors.py`.
@@ -64,6 +69,39 @@ http://localhost:8080/catalog?vector=hidden_div&payload=<urlencoded text>
 
 Every request is logged server-side (ground truth) to `outputs/server_audit_*.log`,
 including the page id, the vector used, and the attack goal.
+
+## Deploying to a public URL (Render / Railway)
+
+The server is pure Python stdlib at runtime and binds to `$PORT` / `0.0.0.0`, so
+it runs unchanged on most cloud hosts. The repo must be pushed to GitHub first
+(both platforms deploy from a connected repo + branch).
+
+### Render — Blueprint (one click)
+A `render.yaml` at the repo root already describes the service (`rootDir:
+injection-server`). In the Render dashboard: **New → Blueprint**, connect this
+repo and the `icon-defense` branch. Render builds and gives you a URL like
+`https://injection-server.onrender.com`. Pages are then at
+`https://injection-server.onrender.com/p/iphone-17-review`.
+
+### Render — manual (no blueprint)
+**New → Web Service**, connect the repo, then set:
+- Root Directory: `injection-server`
+- Build Command: `pip install -r requirements.txt`
+- Start Command: `python server.py`
+
+### Railway
+**New Project → Deploy from GitHub repo**, then in service Settings:
+- Root Directory: `injection-server`  (Railway reads the `Procfile` there)
+- Railway injects `$PORT` automatically; no other config needed.
+
+> Note: the **slug → attack-goal mapping is printed to the server logs at
+> startup** (operator ground truth). On Render/Railway, read it from the service's
+> log tab. The website itself never displays it.
+
+> This server intentionally hosts content crafted to manipulate AI agents. It
+> targets *your own* test agent and serves benign-looking pages to humans, but
+> since the URL is public, prefer the free tier (which idles when unused) and
+> take it down when you're done testing rather than leaving it up indefinitely.
 
 ## Regenerating the prompt pages
 

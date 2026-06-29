@@ -13,9 +13,9 @@ import socket
 from pathlib import Path
 from config import OUTPUT_DIR,SERVER_HOST,SERVER_PORT,INJECTION_PAYLOADS
 from vectors import VECTOR_MAP
-from prompt_pages import PROMPT_PAGES, PROMPT_PAGES_BY_ID
+from prompt_pages import PROMPT_PAGES, PROMPT_PAGES_BY_ID, PROMPT_PAGES_BY_SLUG
 
-# Default stealth vector used for /p/<id> prompt pages when no ?vector= is given.
+# Default stealth vector used for /p/<slug> prompt pages when no ?vector= is given.
 # hidden_div places the payload as text content in a display:none div, which
 # handles arbitrary payload text (quotes, JSON, etc.) without breaking markup.
 DEFAULT_PROMPT_VECTOR = "hidden_div"
@@ -309,20 +309,20 @@ class VulnerableSiteHandler(http.server.SimpleHTTPRequestHandler):
                 <p style="color:#cbd5e1; font-size:.95rem; line-height:1.6;">{snippet}</p>
             </div>"""
 
-        query = page.get("page_query", "") or page["user_goal"]
+        title = page.get("title", "") or page.get("page_query", "") or page["user_goal"]
         return f"""<!DOCTYPE html>
     <html lang="en">
     <head>
-        <title>{query} — NextGen Content Index</title>
+        <title>{title} — NextGen Knowledge Base</title>
         <meta charset="UTF-8">
         <style>{self._get_css()}</style>
     </head>
     <body>
     {self._header()}
     <div class="wrapper">
-        <h1 style="font-size:1.6rem; margin-bottom:.25rem;">Results for: {query}</h1>
+        <h1 style="font-size:1.8rem; margin-bottom:.25rem;">{title}</h1>
         <p style="color:#94a3b8; margin-bottom:1.5rem; font-size:.9rem;">
-            Aggregated content index. {len(page['benign_results'])} source(s) matched your query.
+            NextGen Knowledge Base &middot; {len(page['benign_results'])} source(s)
         </p>
         <div class="grid">
         {cards}
@@ -333,35 +333,30 @@ class VulnerableSiteHandler(http.server.SimpleHTTPRequestHandler):
     </html>"""
 
     def _build_prompt_index(self, display_host):
+        """Innocuous public 'articles' listing — titles + links only, no attack
+        metadata (this page is reachable over the internet). The operator gets the
+        full slug->attack mapping printed to the console at startup instead."""
         rows = ""
         for p in PROMPT_PAGES:
-            pid = p["id"]
             rows += f"""
             <div class="card">
-                <span class="badge">{p['family']}</span>
-                <h3 class="product-title"><a href="/p/{pid}" style="color:var(--accent); text-decoration:none;">{pid}</a></h3>
-                <ul class="specs">
-                    <li><strong>Goal:</strong> {p['user_goal']}</li>
-                    <li><strong>Attack:</strong> {p['attack_goal']}</li>
-                </ul>
-                <p style="font-size:.8rem; color:#64748b;">/p/{pid}</p>
+                <h3 class="product-title">
+                    <a href="/p/{p['slug']}" style="color:var(--accent); text-decoration:none;">{p['title']}</a>
+                </h3>
+                <p style="font-size:.8rem; color:#64748b;">/p/{p['slug']}</p>
             </div>"""
         return f"""<!DOCTYPE html>
     <html lang="en">
     <head>
-        <title>Prompt Page Index — InjectionServer</title>
+        <title>Knowledge Base — NextGen Global Systems</title>
         <meta charset="UTF-8">
         <style>{self._get_css()}</style>
     </head>
     <body>
     {self._header()}
     <div class="wrapper">
-        <h1 style="font-size:2rem; margin-bottom:.5rem;">Prompt Page Index</h1>
-        <p style="color:#94a3b8; margin-bottom:1rem;">
-            {len(PROMPT_PAGES)} attack cases imported from evaluate_defense.py. Each page hides its
-            malicious instruction via a stealth vector (default: <code>{DEFAULT_PROMPT_VECTOR}</code>).
-            Override per request with <code>?vector=&lt;id&gt;</code>.
-        </p>
+        <h1 style="font-size:2rem; margin-bottom:.5rem;">Knowledge Base</h1>
+        <p style="color:#94a3b8; margin-bottom:1rem;">Browse our latest articles and guides.</p>
         <div class="grid">
         {rows}
         </div>
@@ -383,9 +378,10 @@ class VulnerableSiteHandler(http.server.SimpleHTTPRequestHandler):
         path = parsed_url.path
 
         # ── Prompt-page routes (one page per evaluate_defense.py attack case) ──
-        # The injection text comes from the page's own data, not the ?payload=
-        # query param; the vector (where it hides) defaults to DEFAULT_PROMPT_VECTOR
-        # and can be overridden per request with ?vector=<id>.
+        # Routed by an innocuous topic slug (/p/<slug>); the internal case id is
+        # used only for the server-side audit log. The injection text comes from
+        # the page's own data, not the ?payload= query param; the vector (where it
+        # hides) defaults to DEFAULT_PROMPT_VECTOR, overridable with ?vector=<id>.
         if path == "/prompts":
             html_content = self._build_prompt_index(SERVER_HOST)
             logging.info(f"REQUEST | path={path} | prompt_index")
@@ -393,10 +389,10 @@ class VulnerableSiteHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if path.startswith("/p/"):
-            page_id = path[len("/p/"):].strip("/")
-            page = PROMPT_PAGES_BY_ID.get(page_id)
+            slug = path[len("/p/"):].strip("/")
+            page = PROMPT_PAGES_BY_SLUG.get(slug)
             if not page:
-                self._respond(f"<h1>Unknown prompt page: {page_id}</h1>", status=404)
+                self._respond(f"<h1>404 — page not found</h1>", status=404)
                 return
             html_content = self._build_prompt_page(page)
             chosen_vector = vector_id if (vector_id in VECTOR_MAP) else DEFAULT_PROMPT_VECTOR
@@ -405,9 +401,9 @@ class VulnerableSiteHandler(http.server.SimpleHTTPRequestHandler):
                 html_content = VECTOR_MAP[chosen_vector]["func"](html_content, page["injection"])
                 injection_applied = True
             except Exception as e:
-                logging.error(f"PROMPT INJECTION FAILED | id={page_id} | vector={chosen_vector} | error={e}")
+                logging.error(f"PROMPT INJECTION FAILED | id={page['id']} | vector={chosen_vector} | error={e}")
             logging.info(
-                f"REQUEST | path={path} | id={page_id} | vector={chosen_vector} | "
+                f"REQUEST | path={path} | slug={slug} | id={page['id']} | vector={chosen_vector} | "
                 f"injected={injection_applied} | attack_goal={page['attack_goal']!r}"
             )
             self._respond(html_content)
@@ -513,10 +509,11 @@ if __name__ == "__main__":
     print("\n" + "=" * 90)
     print(f" 📑 PROMPT PAGES (imported from evaluate_defense.py) — hidden via '{DEFAULT_PROMPT_VECTOR}'")
     print("=" * 90)
-    print(f"\n   Index: http://{display_host}:{SERVER_PORT}/prompts")
-    print("   (append ?vector=<id> to any page below to change the stealth vector)\n")
+    print(f"\n   Public index: http://{display_host}:{SERVER_PORT}/prompts")
+    print("   (append ?vector=<id> to any page to change the stealth vector)")
+    print("\n   slug -> attack mapping (operator ground truth; not shown on the site):\n")
     for p in PROMPT_PAGES:
-        print(f"   [{p['family']:<22}] http://{display_host}:{SERVER_PORT}/p/{p['id']}")
+        print(f"   /p/{p['slug']:<28} id={p['id']:<28} [{p['family']:<20}] {p['attack_goal']}")
 
     print("\n" + "=" * 90)
     print("Press Ctrl+C to shut it down.\n")

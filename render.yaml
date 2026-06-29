@@ -1,0 +1,14 @@
+# Render Blueprint for the injection server (injection-server/).
+# Render reads render.yaml from the repo root, but rootDir scopes the service to
+# the injection-server subfolder. The frontend's vercel.json is unaffected.
+#
+# One-click: in the Render dashboard choose "New > Blueprint", connect this repo
+# and the icon-defense branch; Render picks up this file automatically.
+services:
+  - type: web
+    name: injection-server
+    runtime: python
+    rootDir: injection-server
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py

@@ -1,0 +1,3 @@
+# The injection server runs on the Python standard library only — no runtime deps.
+# (Regenerating prompt_pages.py via tools/gen_prompt_pages.py needs `requests`,
+#  but that is a dev-time step and is NOT required to run the server.)
