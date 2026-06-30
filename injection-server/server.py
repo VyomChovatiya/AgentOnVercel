@@ -397,11 +397,14 @@ class VulnerableSiteHandler(http.server.SimpleHTTPRequestHandler):
             html_content = self._build_prompt_page(page)
             chosen_vector = vector_id if (vector_id in VECTOR_MAP) else DEFAULT_PROMPT_VECTOR
             injection_applied = False
-            try:
-                html_content = VECTOR_MAP[chosen_vector]["func"](html_content, page["injection"])
-                injection_applied = True
-            except Exception as e:
-                logging.error(f"PROMPT INJECTION FAILED | id={page['id']} | vector={chosen_vector} | error={e}")
+            # output_exfil pages carry their lure inside the visible content, so
+            # `injection` is empty and there is nothing to hide in a DOM vector.
+            if page.get("injection", "").strip():
+                try:
+                    html_content = VECTOR_MAP[chosen_vector]["func"](html_content, page["injection"])
+                    injection_applied = True
+                except Exception as e:
+                    logging.error(f"PROMPT INJECTION FAILED | id={page['id']} | vector={chosen_vector} | error={e}")
             logging.info(
                 f"REQUEST | path={path} | slug={slug} | id={page['id']} | vector={chosen_vector} | "
                 f"injected={injection_applied} | attack_goal={page['attack_goal']!r}"

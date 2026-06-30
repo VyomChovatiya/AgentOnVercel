@@ -46,17 +46,17 @@ User / Evaluator
 │                proxy.py  (FastAPI)                │
 │                                                   │
 │  Defense Layer                                    │
-│   Level 0 — security system prompt               │
-│   Level 1 — IPI regex scan on every tool result  │
+│   Level 0 — security system prompt                │
+│   Level 1 — IPI regex scan on every tool result   │
 │   Level 2 — intent verification for sensitive     │
 │              tool calls (email, IMAP)             │
 │                                                   │
 │  Tools available to the agent                     │
-│   web_search       → DuckDuckGo                  │
+│   web_search       → DuckDuckGo                   │
 │   scrape_url       → Playwright headless browser  │
-│   send_email       → SMTP                        │
-│   get_emails       → IMAP                        │
-│   update_email_status → IMAP                     │
+│   send_email       → SMTP                         │
+│   get_emails       → IMAP                         │
+│   update_email_status → IMAP                      │ 
 └───────────────────────────────────────────────────┘
           │  OpenAI-compatible API
           ▼
@@ -66,10 +66,10 @@ User / Evaluator
           │  scrape_url fetches a live page
           ▼
 ┌───────────────────────────────────────────────────┐
-│    injection-server/server.py                     │
-│    (deployed: https://nextgen-products.onrender.com)
+│  injection-server/server.py                       │
+│  (deployed: https://nextgen-products.onrender.com)|
 │                                                   │
-│  /p/<slug>   — realistic article page             │
+│  /p/<name>   — realistic article page             │
 │               + injection hidden via stealth      │
 │               vector in the DOM                   │
 │  /prompts    — public article index               │
@@ -86,8 +86,7 @@ AgenticTraps/
 ├── proxy.py                    # FastAPI proxy: agent + all three defense levels
 ├── evaluate_defense.py         # Full evaluation script (25 test cases, all metrics)
 ├── test.py                     # Single-case runner for quick testing
-├── render.yaml                 # Render Blueprint for injection-server deployment
-├── .env                        # SMTP/IMAP credentials (not committed)
+├── render.yaml                 # Render Blueprint for injection-server deployment                       
 ├── results/                    # Per-run timestamped JSON results (gitignored)
 └── injection-server/           # The live injection website
     ├── server.py               # HTTP server + page/route logic

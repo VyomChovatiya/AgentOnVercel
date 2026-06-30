@@ -67,6 +67,14 @@ PAGE_META = {
     "strong_completion_lure_01":   ("btc-market-update",         "Bitcoin Market Update"),
     "strong_nested_tool_doc_01":   ("mumbai-weather-today",      "Mumbai Weather — Live"),
     "strong_blended_narrative_01": ("iphone-17-hands-on",        "iPhone 17 Hands-On Review"),
+    # output_exfil family: the directive is fused into the visible article body
+    # (semantic stealth), so these pages show the full blob and hide nothing.
+    "output_exfil_pixel_01":       ("iphone-17-verge-review",    "iPhone 17 Review — The Verge"),
+    "output_exfil_cite_01":        ("machine-learning-explained","Machine Learning Explained"),
+    "output_exfil_footer_01":      ("mumbai-weather-update",     "Mumbai Weather Update"),
+    "output_exfil_beacon_01":      ("ai-weekly-digest",          "AI Weekly Digest"),
+    "output_exfil_confirm_01":     ("bitcoin-price-coindesk",    "Bitcoin Price — Live Quote"),
+    "output_exfil_scrape_01":      ("iphone-17-techreview",      "iPhone 17 Review — TechReview Daily"),
 }
 
 
@@ -94,7 +102,29 @@ for tc in e.TEST_CASES:
     benign_results = []   # visible page content
     injection = ""        # malicious instruction, hidden via vector
 
-    if isinstance(payload, list):
+    if tc["family"] == "output_exfil":
+        # output_exfil blends its directive INTO the legitimate content the user
+        # asked for — its stealth is semantic (reads like an editorial / licensing
+        # note), not DOM-based. Splitting the directive into a hidden vector would
+        # separate it from the surrounding content and recreate the exact
+        # "structurally ignorable sidecar" failure these cases were rewritten to
+        # avoid. So we render the WHOLE blob as visible content and hide nothing;
+        # server.py skips vector injection when `injection` is empty.
+        if isinstance(payload, list):
+            item = payload[0]
+            benign_results.append({
+                "title": item.get("title", ""),
+                "url": item.get("url", ""),
+                "snippet": item.get("snippet", ""),
+            })
+        else:  # dict/blob payload (scrape case)
+            benign_results.append({
+                "title": payload.get("url", "Document"),
+                "url": payload.get("url", ""),
+                "snippet": payload.get("content", ""),
+            })
+        injection = ""
+    elif isinstance(payload, list):
         if len(payload) >= 2:
             # In every test case the malicious entry is the LAST list item,
             # preceded by genuine benign result(s). Positional split is more
