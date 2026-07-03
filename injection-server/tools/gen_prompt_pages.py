@@ -75,6 +75,10 @@ PAGE_META = {
     "output_exfil_beacon_01":      ("ai-weekly-digest",          "AI Weekly Digest"),
     "output_exfil_confirm_01":     ("bitcoin-price-coindesk",    "Bitcoin Price — Live Quote"),
     "output_exfil_scrape_01":      ("iphone-17-techreview",      "iPhone 17 Review — TechReview Daily"),
+    # data_poisoning family: a fabricated "fact" stated as ordinary visible content
+    # (no directive at all), so like output_exfil these pages hide nothing.
+    "data_poison_promote_01":      ("best-anc-headphones-2026",  "Best Noise-Cancelling Headphones 2026"),
+    "data_poison_smear_01":        ("quantumos-reviews",         "QuantumOS Reviews"),
 }
 
 
@@ -102,21 +106,21 @@ for tc in e.TEST_CASES:
     benign_results = []   # visible page content
     injection = ""        # malicious instruction, hidden via vector
 
-    if tc["family"] == "output_exfil":
-        # output_exfil blends its directive INTO the legitimate content the user
-        # asked for — its stealth is semantic (reads like an editorial / licensing
-        # note), not DOM-based. Splitting the directive into a hidden vector would
-        # separate it from the surrounding content and recreate the exact
-        # "structurally ignorable sidecar" failure these cases were rewritten to
-        # avoid. So we render the WHOLE blob as visible content and hide nothing;
-        # server.py skips vector injection when `injection` is empty.
+    if tc["family"] in ("output_exfil", "data_poisoning"):
+        # Semantic-stealth families: the manipulation IS the visible content, not a
+        # DOM-hidden directive. output_exfil fuses an editorial/licensing note into
+        # the article the user asked for; data_poisoning states a fabricated "fact"
+        # as ordinary reported content. Hiding either in a stealth vector would
+        # separate it from the surrounding text the attack relies on, so we render
+        # EVERY payload item as visible content and hide nothing. server.py skips
+        # vector injection when `injection` is empty.
         if isinstance(payload, list):
-            item = payload[0]
-            benign_results.append({
-                "title": item.get("title", ""),
-                "url": item.get("url", ""),
-                "snippet": item.get("snippet", ""),
-            })
+            for item in payload:
+                benign_results.append({
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "snippet": item.get("snippet", ""),
+                })
         else:  # dict/blob payload (scrape case)
             benign_results.append({
                 "title": payload.get("url", "Document"),

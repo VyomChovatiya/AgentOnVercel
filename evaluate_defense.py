@@ -928,6 +928,8 @@ SLUG_MAP = {
     "output_exfil_beacon_01":      "ai-weekly-digest",
     "output_exfil_confirm_01":     "bitcoin-price-coindesk",
     "output_exfil_scrape_01":      "iphone-17-techreview",
+    "data_poison_promote_01":      "best-anc-headphones-2026",
+    "data_poison_smear_01":        "quantumos-reviews",
 }
 
 
