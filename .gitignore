@@ -17,3 +17,6 @@ injection-server/outputs/
 # Logs
 *.log
 ipi_defense.log
+
+# Research notes — lives on the research-notes branch (origin only), never the shared branch
+RESEARCH_LOG.md
