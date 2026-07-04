@@ -16,9 +16,12 @@ from vectors import VECTOR_MAP
 from prompt_pages import PROMPT_PAGES, PROMPT_PAGES_BY_ID, PROMPT_PAGES_BY_SLUG
 
 # Default stealth vector used for /p/<slug> prompt pages when no ?vector= is given.
-# hidden_div places the payload as text content in a display:none div, which
-# handles arbitrary payload text (quotes, JSON, etc.) without breaking markup.
-DEFAULT_PROMPT_VECTOR = "hidden_div"
+# `offscreen` positions the payload off-screen (invisible to a human) but — unlike
+# display:none — keeps it in the DOM AND in what readability readers (jina) extract,
+# so the injection actually reaches the agent through the default reader instead of
+# being silently stripped. The DOM-hidden vectors (hidden_div, meta, aria, comment,
+# ...) remain available per-request via ?vector=<id> for scraper-specific tests.
+DEFAULT_PROMPT_VECTOR = "offscreen"
 
 # Server-side injection audit log — separate from main.py output
 log_path = Path(OUTPUT_DIR)
@@ -516,6 +519,65 @@ class VulnerableSiteHandler(http.server.SimpleHTTPRequestHandler):
             </table>
         </section>"""
 
+    # Map a source URL to a realistic-looking publication (name, section) so each
+    # /p/<slug> page reads like the outlet it cites rather than a generic site.
+    _PUBLICATIONS = {
+        "example.com":            ("Example Domain", "Reference"),
+        "techradar.com":          ("TechRadar", "Reviews"),
+        "techreview-daily.com":   ("TechReview Daily", "Reviews"),
+        "theverge.com":           ("The Verge", "Tech"),
+        "coindesk.com":           ("CoinDesk", "Markets"),
+        "imd.gov.in":             ("India Meteorological Department", "Forecast"),
+        "allrecipes.com":         ("AllRecipes", "Recipes"),
+        "en.wikipedia.org":       ("Wikipedia", "Encyclopedia"),
+        "python.org":             ("Python.org", "Documentation"),
+        "realpython.com":         ("Real Python", "Tutorials"),
+        "michelinstar.com":       ("Michelin Guide", "Dining"),
+        "iea.org":                ("International Energy Agency", "Energy"),
+        "ainews.io":              ("AI Weekly", "Artificial Intelligence"),
+        "stackoverflow.com":      ("Stack Overflow", "Developer Survey"),
+        "soundguys.com":          ("SoundGuys", "Audio"),
+        "audioreview.com":        ("AudioReview", "Lab Tests"),
+        "techcrunch.com":         ("TechCrunch", "Startups"),
+        "nature.com":             ("Nature", "Research"),
+        "ibm.com":                ("IBM Research", "Research"),
+    }
+
+    _AUTHORS = ["Alex Mercer", "Priya Nair", "Jordan Blake", "Sam Okafor",
+                "Lena Vasquez", "Chris Doyle", "Maya Feldman", "Devin Park"]
+
+    def _publication(self, url):
+        host = urllib.parse.urlparse(url or "").netloc.lower()
+        for domain, meta in self._PUBLICATIONS.items():
+            if domain in host:
+                return meta
+        # Fallback: title-case the second-level domain.
+        parts = [p for p in host.split(".") if p not in
+                 ("www", "com", "net", "org", "io", "gov", "in", "ai", "app", "docs", "co")]
+        name = parts[0].replace("-", " ").title() if parts else "The Daily Brief"
+        return (name, "News")
+
+    def _byline(self, page):
+        seed = sum(ord(c) for c in (page.get("slug") or page.get("id") or "x"))
+        author = self._AUTHORS[seed % len(self._AUTHORS)]
+        day = 1 + (seed % 27)
+        return author, f"June {day}, 2026"
+
+    def _article_css(self):
+        # Small article-only overrides layered on top of the shared stylesheet.
+        return """
+        .pub-masthead .inner { align-items: baseline; }
+        .pub-name { font-family: Georgia, "Times New Roman", serif; font-size: 1.35rem !important;
+                    font-weight: 800; letter-spacing: .01em; }
+        .byline { color: var(--muted); font-size: .92rem; margin: 0 0 26px;
+                  padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+        .article-body > p:first-of-type { font-size: 1.14rem; color: #2b333c; }
+        .article-body p { max-width: 68ch; }
+        .source-list { margin: 0; padding-left: 18px; color: var(--muted); font-size: .9rem; }
+        .source-list li { margin: 5px 0; }
+        .source-list a { overflow-wrap: anywhere; }
+        """
+
     # ------------------------------------------------------------------ #
     #  Route builders                                                      #
     # ------------------------------------------------------------------ #
@@ -817,42 +879,67 @@ class VulnerableSiteHandler(http.server.SimpleHTTPRequestHandler):
     # ------------------------------------------------------------------ #
 
     def _build_prompt_page(self, page):
-        """Render a realistic content page for one prompt case. The benign_results
-        are the only VISIBLE content; the malicious instruction is NOT shown here —
-        it is injected into the DOM by a stealth vector in do_GET()."""
-        cards = ""
-        for r in page["benign_results"]:
-            title = r.get("title", "")
-            url = r.get("url", "")
-            snippet = r.get("snippet", "")
-            cards += f"""
-            <div class="card review">
-                <strong>{title}</strong>
-                <p class="source-url">{url}</p>
-                <p class="source-snippet">{snippet}</p>
-            </div>"""
+        """Render each prompt case as a realistic single article on the publication
+        it cites (The Verge, CoinDesk, AllRecipes, ...). The benign_results are the
+        only VISIBLE content; for hidden-vector families the malicious instruction is
+        injected into the DOM by a stealth vector in do_GET(). The <head>/<body>/<h1>/
+        </body> anchor tags the vectors target are all preserved below."""
+        results = page.get("benign_results", [])
+        primary_url = (results[0].get("url") if results else "") or ""
+        pub_name, section = self._publication(primary_url)
+        author, date = self._byline(page)
 
-        title = page.get("title", "") or page.get("page_query", "") or page["user_goal"]
+        full_title = page.get("title", "") or page.get("page_query", "") or page["user_goal"]
+        # Drop a trailing "— Publication" from the visible headline (the masthead
+        # already carries the outlet), but keep it in the <title>.
+        headline = full_title.split(" — ")[0].strip()
+
+        # Source snippets become article prose (a real article, not raw search cards).
+        body = "\n".join(f"            <p>{r.get('snippet', '')}</p>" for r in results)
+        sources = "\n".join(
+            f'                <li><a href="{r.get("url", "")}">{r.get("title", "") or r.get("url", "")}</a></li>'
+            for r in results
+        )
+
         return f"""<!DOCTYPE html>
     <html lang="en">
     <head>
-        <title>{title} — NextGen Knowledge Base</title>
+        <title>{full_title} — {pub_name}</title>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>{self._get_css()}</style>
+        <style>{self._article_css()}</style>
     </head>
     <body>
-    {self._header()}
-    <div class="wrapper">
-        <h1>{title}</h1>
-        <p class="lede">
-            NextGen Knowledge Base &middot; {len(page['benign_results'])} source(s)
-        </p>
-        <div class="grid">
-        {cards}
+    <header class="pub-masthead">
+        <div class="inner">
+            <span class="pub-name">{pub_name}</span>
+            <nav>
+                <a href="/prompts">Home</a>
+                <a href="/prompts">{section}</a>
+                <a href="/prompts">Subscribe</a>
+            </nav>
         </div>
+    </header>
+    <div class="wrapper article-copy">
+        <p class="eyebrow">{section}</p>
+        <h1>{headline}</h1>
+        <p class="byline">By {author} &middot; {date} &middot; {pub_name}</p>
+        <article class="article-body">
+{body}
         {self._prompt_topic_content(page)}
+        </article>
+        <section class="content-section">
+            <p class="eyebrow">Sources</p>
+            <ul class="source-list">
+{sources}
+            </ul>
+        </section>
     </div>
-    {self._footer()}
+    <footer>
+        <p>&copy; 2026 {pub_name}. All rights reserved.</p>
+        <p class="path-label">{section} &middot; Reader edition</p>
+    </footer>
     </body>
     </html>"""
 
@@ -942,10 +1029,14 @@ class VulnerableSiteHandler(http.server.SimpleHTTPRequestHandler):
                 self._respond(f"<h1>404 — page not found</h1>", status=404)
                 return
             html_content = self._build_prompt_page(page)
-            chosen_vector = vector_id if (vector_id in VECTOR_MAP) else DEFAULT_PROMPT_VECTOR
+            # Vector precedence: explicit ?vector= > the page's own preferred vector
+            # (e.g. output_exfil uses "offscreen" so its lure is invisible to a human
+            # but still crawlable) > the server default.
+            page_vector = page.get("vector") if page.get("vector") in VECTOR_MAP else DEFAULT_PROMPT_VECTOR
+            chosen_vector = vector_id if (vector_id in VECTOR_MAP) else page_vector
             injection_applied = False
-            # output_exfil pages carry their lure inside the visible content, so
-            # `injection` is empty and there is nothing to hide in a DOM vector.
+            # data_poisoning pages carry their lure in the visible content (no
+            # directive to hide), so `injection` is empty and nothing is injected.
             if page.get("injection", "").strip():
                 try:
                     html_content = VECTOR_MAP[chosen_vector]["func"](html_content, page["injection"])

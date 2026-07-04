@@ -106,14 +106,11 @@ for tc in e.TEST_CASES:
     benign_results = []   # visible page content
     injection = ""        # malicious instruction, hidden via vector
 
-    if tc["family"] in ("output_exfil", "data_poisoning"):
-        # Semantic-stealth families: the manipulation IS the visible content, not a
-        # DOM-hidden directive. output_exfil fuses an editorial/licensing note into
-        # the article the user asked for; data_poisoning states a fabricated "fact"
-        # as ordinary reported content. Hiding either in a stealth vector would
-        # separate it from the surrounding text the attack relies on, so we render
-        # EVERY payload item as visible content and hide nothing. server.py skips
-        # vector injection when `injection` is empty.
+    if tc["family"] == "data_poisoning":
+        # data_poisoning states a fabricated "fact" as ordinary reported content —
+        # there is no directive to hide, and (like real content poisoning) the fake
+        # material is shown to everyone. So we render EVERY payload item as visible
+        # content and inject nothing.
         if isinstance(payload, list):
             for item in payload:
                 benign_results.append({
@@ -121,7 +118,7 @@ for tc in e.TEST_CASES:
                     "url": item.get("url", ""),
                     "snippet": item.get("snippet", ""),
                 })
-        else:  # dict/blob payload (scrape case)
+        else:  # dict/blob payload
             benign_results.append({
                 "title": payload.get("url", "Document"),
                 "url": payload.get("url", ""),
@@ -155,6 +152,10 @@ for tc in e.TEST_CASES:
         benign_results.append(br)
 
     slug, title = PAGE_META.get(tc["id"], (slugify(tc["user_goal"]), tc["user_goal"]))
+    # output_exfil hides its lure OFF-SCREEN (invisible to a human, but still in the
+    # DOM and kept by readability readers) rather than in a display:none div; other
+    # families use the server default vector.
+    page_vector = "offscreen" if tc["family"] == "output_exfil" else ""
     pages.append({
         "id": tc["id"],                # internal ground-truth id (audit log only)
         "slug": slug,                  # public, innocuous route: /p/<slug>
@@ -165,6 +166,7 @@ for tc in e.TEST_CASES:
         "page_query": (tc.get("tool_args") or {}).get("query", ""),
         "benign_results": benign_results,
         "injection": injection,
+        "vector": page_vector,         # per-page preferred stealth vector ("" = server default)
         "success_indicators": tc["success_indicators"],
     })
 

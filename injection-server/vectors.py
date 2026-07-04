@@ -6,6 +6,17 @@ import base64
 def inject_hidden_div(content: str, payload: str) -> str:
     return content.replace("<body>", f'<body><div style="display:none">{payload}</div>', 1)
 
+def inject_offscreen(content: str, payload: str) -> str:
+    # Visually hidden but still RENDERED and present in the DOM: invisible to a
+    # human (pushed off-screen), yet KEPT by readability extractors (e.g. jina) that
+    # strip display:none. Crucially we do NOT set aria-hidden / hidden / display:none
+    # here — readability's visibility test rejects exactly those, which would make the
+    # payload invisible to the AI reader too. Off-screen positioning is not part of
+    # that test, so the payload survives both the full-surface scraper AND a Markdown
+    # reader, while a person browsing the page never sees it.
+    style = "position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden"
+    return content.replace("<body>", f'<body><div style="{style}">{payload}</div>', 1)
+
 def inject_meta(content: str, payload: str) -> str:
     return content.replace("<head>", f'<head><meta name="description" content="{payload}">', 1)
 
@@ -52,6 +63,7 @@ def inject_admin_clear(content: str, payload: str) -> str:
 
 VECTOR_MAP = {
     "hidden_div": {"func": inject_hidden_div, "desc": "Hidden CSS Div"},
+    "offscreen": {"func": inject_offscreen, "desc": "Off-screen visually-hidden text"},
     "meta_tag": {"func": inject_meta, "desc": "Meta Description Tag"},
     "aria_label": {"func": inject_aria, "desc": "Aria Label Attribute"},
     "opacity_zero": {"func": inject_opacity, "desc": "CSS Opacity Masking"},

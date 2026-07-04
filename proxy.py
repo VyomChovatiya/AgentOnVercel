@@ -526,12 +526,20 @@ TOOLS = [
                 "Read the full content of a web page and return it as clean Markdown. "
                 "This is the PRIMARY tool for fetching a specific URL — use it by default "
                 "for articles, blog posts, documentation, news, product and review pages. "
-                "It returns readable Markdown with links and images preserved."
+                "It renders JavaScript-heavy / single-page apps and preserves links and "
+                "images. Large pages are returned one chunk at a time: the result reports "
+                "total_chunks, has_more, and next_chunk. If you need more of the page, call "
+                "this tool again with the same url and chunk=<next_chunk>."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "url": {"type": "string"}
+                    "url": {"type": "string"},
+                    "chunk": {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "0-based chunk index to return for a large page (default 0)."
+                    }
                 },
                 "required": ["url"]
             }
@@ -704,17 +712,97 @@ def scrape_url(url: str, selector: str = None):
         print(f"[scrape_url error] {url}: {e}")
         return {"error": str(e)}
 
-def jina_reader(url: str):
+# Per-chunk character budget. Kept under the tool-result cap in run_tools (4500)
+# so a returned chunk is never blindly truncated mid-content by the loop.
+_JINA_CHUNK_CHARS = 3500
+
+def _chunk_markdown(text: str, size: int = _JINA_CHUNK_CHARS) -> list:
+    """Split markdown into <=size-char chunks at paragraph / heading boundaries, so
+    the model receives whole semantic units instead of a mid-sentence cut. A single
+    oversized block (no blank lines) is hard-split as a last resort."""
+    text = (text or "").strip()
+    if len(text) <= size:
+        return [text] if text else [""]
+    chunks, cur = [], ""
+    for block in re.split(r"\n\s*\n", text):
+        block = block.strip()
+        if not block:
+            continue
+        if len(block) > size:
+            if cur:
+                chunks.append(cur); cur = ""
+            for i in range(0, len(block), size):
+                chunks.append(block[i:i + size])
+            continue
+        if cur and len(cur) + len(block) + 2 > size:
+            chunks.append(cur); cur = block
+        else:
+            cur = f"{cur}\n\n{block}" if cur else block
+    if cur:
+        chunks.append(cur)
+    return chunks or [""]
+
+def jina_reader(url: str, chunk: int = 0):
+    """Fetch a URL via r.jina.ai as Markdown. Renders JavaScript / SPA pages
+    (browser engine + wait for the page to settle) and returns large pages one
+    chunk at a time so the model's context never overflows."""
     try:
-        headers = {}
+        headers = {
+            "Accept": "application/json",
+            # Dynamic / JS-rendered (SPA) support: use the headless-browser engine and
+            # wait for the page to settle, so client-rendered and lazy-loaded content is
+            # captured instead of an empty pre-render shell.
+            "x-engine": "browser",
+            "x-timeout": "15",
+            # Keep image/link markdown (the output_exfil tracking pixel is an image).
+            "x-retain-images": "all",
+            "x-retain-links": "all",
+            # Ask Reader to semantically chunk large pages.
+            "x-markdown-chunking": "true",
+        }
         api_key = os.environ.get("JINA_API_KEY")
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
-        jina_url = f"https://r.jina.ai/{url}"
-        resp = httpx.get(jina_url, headers=headers, timeout=20)
+        resp = httpx.get(f"https://r.jina.ai/{url}", headers=headers, timeout=45)
         if resp.status_code != 200:
-            return {"error": f"Jina Reader error: {resp.text}"}
-        return {"url": url, "content": resp.text[:4000]}
+            return {"error": f"Jina Reader error: {resp.text[:300]}"}
+
+        # Pull the content out of the JSON (or fall back to raw text), accepting a
+        # ready-made list of chunks from Reader if it provided one.
+        chunk_list = None
+        try:
+            data = resp.json()
+            d = data.get("data", data) if isinstance(data, dict) else {}
+            jina_chunks = d.get("chunks")
+            content = d.get("content")
+            if isinstance(jina_chunks, list) and jina_chunks:
+                chunk_list = [str(c) for c in jina_chunks]
+            elif isinstance(content, list):
+                chunk_list = [str(c) for c in content]
+            elif isinstance(content, str):
+                chunk_list = _chunk_markdown(content)
+        except Exception:
+            pass
+        if chunk_list is None:
+            chunk_list = _chunk_markdown(resp.text)
+
+        # Enforce the per-chunk size cap (re-split any oversized chunk) so nothing
+        # gets truncated by the downstream tool-result limit.
+        capped = []
+        for c in chunk_list:
+            capped.extend(_chunk_markdown(c) if len(c) > _JINA_CHUNK_CHARS else [c])
+        chunk_list = capped or [""]
+
+        total = len(chunk_list)
+        idx = max(0, min(int(chunk or 0), total - 1))
+        return {
+            "url": url,
+            "chunk_index": idx,
+            "total_chunks": total,
+            "has_more": idx < total - 1,
+            "next_chunk": (idx + 1) if idx < total - 1 else None,
+            "content": chunk_list[idx],
+        }
     except Exception as e:
         return {"error": str(e)}
 
@@ -1275,6 +1363,13 @@ async def proxy(request: Request):
             result["choices"][0]["message"]["content"] = content
             # Attach defense metadata to response for evaluation scripts
             result["defense_log"] = defense_log
+            # Expose the raw tool-result text the agent actually received, so the
+            # evaluator can verify an injection was DELIVERED (vs. silently stripped
+            # by the page reader) before scoring the case as resisted.
+            result["retrieved_content"] = " ".join(
+                m.get("content", "") for m in messages
+                if m.get("role") == "tool" and isinstance(m.get("content"), str)
+            )[:8000]
             return JSONResponse(result)
 
 # ── Defense stats endpoint ────────────────────────────────────────────────────
