@@ -21,10 +21,17 @@ stop it? We measure, per attack and per defense layer, what is **delivered**,
 
 - **Agent:** a local LLM (primary results with `granite-4.1-8b`) served through
   LM Studio, wrapped by a defended FastAPI proxy (`proxy.py`).
-- **Tools:** `web_search` (DuckDuckGo), `jina_reader` (r.jina.ai Markdown, **primary**
-  reader; renders JS/SPA, chunks large pages), `scrape_url` (Playwright full-surface
-  fallback), `send_email`/`get_emails`/`update_email_status` (SMTP/IMAP; never executed
-  in eval).
+- **Tools:** `web_search` (DuckDuckGo), `local_reader` (**primary** reader — SELF-HOSTED,
+  no external API/key; Playwright renders JS/SPA, converts the rendered DOM to clean
+  Markdown, keeps links+images, chunks large pages with pagination), `scrape_url`
+  (Playwright full-surface fallback), `send_email`/`get_emails`/`update_email_status`
+  (SMTP/IMAP; never executed in eval).
+  - `local_reader` replaced the earlier `jina_reader` (r.jina.ai) to drop the API-key
+    dependency and rate limits. Behavioural difference to note: local_reader converts the
+    DOM directly (no CSS evaluation), so it KEEPS all DOM text incl. `display:none` — i.e.
+    it is a reliable full-DOM Markdown reader, NOT a readability reader. This *avoids* the
+    F6 delivery-artifact (jina stripped hidden/sidebar content); F6 remains valid as an
+    observation about readability readers specifically.
 - **Attack surface:** a deployed website (`nextgen-products.onrender.com`) whose pages
   look like real articles but hide injections in the DOM.
 - **Two delivery modes:** *pre-injection* (payload seeded as a tool result, `max_iterations=1`)
@@ -216,3 +223,7 @@ Per-family (granite-8B verifier, baseline → defended):
     fallback knowledge → `task_complete=True` is correct (attack stopped without killing
     utility). Note: the follow-up web_search was discarded at the max_iterations=2 cap, so
     the fallback here was parametric, not a live search (F8b).
+- Replaced `jina_reader` with a SELF-HOSTED `local_reader` (Playwright render + Markdown
+  conversion + chunking/pagination, links/images preserved) — removes the jina API-key /
+  rate-limit dependency. It keeps full DOM text (incl. display:none), so it delivers
+  injections more reliably than jina did (see §2).
