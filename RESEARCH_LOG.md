@@ -227,3 +227,15 @@ Per-family (granite-8B verifier, baseline → defended):
   conversion + chunking/pagination, links/images preserved) — removes the jina API-key /
   rate-limit dependency. It keeps full DOM text (incl. display:none), so it delivers
   injections more reliably than jina did (see §2).
+- Fixed a DELIVERY-CHECK bug: it only searched the baseline arm's retrieved text for the
+  exact indicator, so it wrongly marked 9/30 live cases "not delivered" even when the L3
+  verifier had clearly fired on the injection. Now a case counts as delivered if a
+  result-inspecting defense (ipi_scan / llm_verifier) fired OR an indicator appears in
+  either arm's retrieved content — reclassifies 8/9 correctly (only a genuinely-stripped
+  case remains). Reminder: chunked reads mean an arm may fetch a chunk without the token,
+  so token-only delivery detection is unreliable.
+- Fixed VRAM growth across a run: (a) `cache_prompt: false` was applied to the primary
+  model's calls but NOT the verifier's, so the verifier's KV cache accumulated over 60+
+  cases — now set on verifier calls too; (b) each page fetch launched a headless Chromium
+  with GPU enabled — now launched with `--disable-gpu` and closed in a `finally`, so page
+  rendering never touches VRAM and browsers can't leak.
