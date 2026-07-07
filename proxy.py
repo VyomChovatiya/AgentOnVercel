@@ -28,6 +28,11 @@ lm = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 verifier_lm = lm
 
 executor = ThreadPoolExecutor(max_workers=2)
+# Headless-Chromium flags: disable GPU so page rendering never consumes VRAM. Each
+# page fetch spawns a browser; GPU-backed rendering was leaking video memory across
+# a run of dozens of fetches. Software rasterization keeps it off the GPU entirely.
+_BROWSER_ARGS = ["--disable-gpu", "--disable-software-rasterizer",
+                 "--disable-dev-shm-usage", "--no-sandbox"]
 semaphore = asyncio.Semaphore(1)
 
 # ── IPI Defense: Level 1 — Semantic Sanitization ─────────────────────
@@ -70,7 +75,7 @@ IPI_PATTERNS = [
     # ── Tool-capability directives  ───────────────────────────
     (r"(use|call|invoke|execute|run)\s+the\s+\w+\s+tool",
      "tool_directive", "FLAG"),
-    (r"(using|via|through)\s+the\s+(send_email|get_emails|update_email_status|web_search|scrape_url|jina_reader)\s+(tool|function|api)",
+    (r"(using|via|through)\s+the\s+(send_email|get_emails|update_email_status|web_search|scrape_url|local_reader)\s+(tool|function|api)",
      "tool_directive", "BLOCK"),
     (r"(send|forward|email|mail)\s+(all|the|my|our|their|conversation|history|context|messages?|data|contents?)",
      "data_exfil", "BLOCK"),
@@ -381,6 +386,11 @@ def _call_verifier(user_content: str, model: str) -> dict:
             ],
             temperature=0,
             max_tokens=1024,
+            # Every verifier call is an independent one-shot classification — never
+            # reuse a cached KV prefix, so the verifier model's context does not
+            # accumulate across cases (this was leaking VRAM: fresh_context was applied
+            # to the primary model's calls but NOT to the verifier's).
+            extra_body={"cache_prompt": False},
         )
         message = resp.choices[0].message
         raw = message.content or ""
@@ -471,10 +481,10 @@ def _action_needs_verification(tool_name: str, args: dict, original_goal: str) -
     # Side-effect / sensitive tools (email send, mailbox read, delete): always verify.
     if tool_name in SENSITIVE_TOOLS:
         return True
-    # URL readers (jina_reader / scrape_url): verify only when the target URL was
+    # URL readers (local_reader / scrape_url): verify only when the target URL was
     # NOT in the user's request — an injected redirect/exfil URL. A URL the user
     # asked for is their intent, so it is not gated.
-    if tool_name in ("jina_reader", "scrape_url"):
+    if tool_name in ("local_reader", "scrape_url"):
         url = str(args.get("url", "")).strip().lower()
         if not url:
             return False
@@ -521,7 +531,7 @@ TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "jina_reader",
+            "name": "local_reader",
             "description": (
                 "Read the full content of a web page and return it as clean Markdown. "
                 "This is the PRIMARY tool for fetching a specific URL — use it by default "
@@ -551,9 +561,9 @@ TOOLS = [
             "name": "scrape_url",
             "description": (
                 "Fallback page reader that loads a URL in a real headless browser and returns "
-                "the complete page content. Use this ONLY when jina_reader fails or returns "
-                "an error, or for pages that require JavaScript execution to render their "
-                "content. Prefer jina_reader for normal pages."
+                "the complete page content and exposes every DOM surface. Use this ONLY when "
+                "local_reader fails or returns an error, or when you need the raw full-surface "
+                "content. Prefer local_reader for normal pages."
             ),
             "parameters": {
                 "type": "object",
@@ -635,18 +645,20 @@ _INJECTION_ATTRS = ("content", "aria-label", "title", "alt", "value", "placehold
 
 def _scrape_sync(url: str, selector: str = None):
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(url, wait_until="domcontentloaded", timeout=15000)
-        # Dynamically-loaded/JS-rendered content (SPAs, lazy-loaded widgets,
-        # XHR-fetched sections) isn't present right after domcontentloaded —
-        # wait for network activity to settle before reading the DOM.
+        browser = p.chromium.launch(headless=True, args=_BROWSER_ARGS)
         try:
-            page.wait_for_load_state("networkidle", timeout=10000)
-        except Exception:
-            pass  # some pages never go fully idle (polling/analytics); proceed with what's loaded
-        html = page.locator("body").inner_text()
-        browser.close()
+            page = browser.new_page()
+            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            # Dynamically-loaded/JS-rendered content (SPAs, lazy-loaded widgets,
+            # XHR-fetched sections) isn't present right after domcontentloaded —
+            # wait for network activity to settle before reading the DOM.
+            try:
+                page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass  # some pages never go fully idle (polling/analytics); proceed
+            html = page.locator("body").inner_text()
+        finally:
+            browser.close()  # always release the browser (and its VRAM) even on error
     soup = BeautifulSoup(html, "lxml")
 
     if selector:
@@ -712,11 +724,11 @@ def scrape_url(url: str, selector: str = None):
         print(f"[scrape_url error] {url}: {e}")
         return {"error": str(e)}
 
-# Per-chunk character budget. Kept under the tool-result cap in run_tools (4500)
-# so a returned chunk is never blindly truncated mid-content by the loop.
-_JINA_CHUNK_CHARS = 3500
+# Per-chunk character budget for the reader. Kept under the tool-result cap in
+# run_tools (4500) so a returned chunk is never blindly truncated mid-content.
+_READER_CHUNK_CHARS = 3500
 
-def _chunk_markdown(text: str, size: int = _JINA_CHUNK_CHARS) -> list:
+def _chunk_markdown(text: str, size: int = _READER_CHUNK_CHARS) -> list:
     """Split markdown into <=size-char chunks at paragraph / heading boundaries, so
     the model receives whole semantic units instead of a mid-sentence cut. A single
     oversized block (no blank lines) is hard-split as a last resort."""
@@ -742,69 +754,140 @@ def _chunk_markdown(text: str, size: int = _JINA_CHUNK_CHARS) -> list:
         chunks.append(cur)
     return chunks or [""]
 
-def jina_reader(url: str, chunk: int = 0):
-    """Fetch a URL via r.jina.ai as Markdown. Renders JavaScript / SPA pages
-    (browser engine + wait for the page to settle) and returns large pages one
-    chunk at a time so the model's context never overflows."""
+def _bs4_markdown(root) -> str:
+    """Compact, dependency-free HTML->Markdown fallback (used if `markdownify` is
+    not installed). Preserves headings, links, and images (so e.g. an output_exfil
+    tracking-pixel <img> survives as `![alt](url)`)."""
+    from bs4 import NavigableString
+    def inline(el):
+        out = []
+        for c in el.children:
+            if isinstance(c, NavigableString):
+                out.append(str(c))
+            elif c.name in ("strong", "b"):
+                out.append(f"**{inline(c).strip()}**")
+            elif c.name in ("em", "i"):
+                out.append(f"*{inline(c).strip()}*")
+            elif c.name == "code":
+                out.append(f"`{c.get_text(strip=True)}`")
+            elif c.name == "a":
+                txt = inline(c).strip() or c.get("href", "")
+                href = c.get("href", "")
+                out.append(f"[{txt}]({href})" if href else txt)
+            elif c.name == "img":
+                src = c.get("src", "")
+                out.append(f"![{c.get('alt', '')}]({src})" if src else "")
+            elif c.name == "br":
+                out.append("\n")
+            else:
+                out.append(inline(c))
+        return "".join(out)
+    parts = []
+    def walk(el):
+        for c in el.children:
+            if isinstance(c, NavigableString):
+                t = str(c).strip()
+                if t:
+                    parts.append(t)
+            elif c.name in ("h1", "h2", "h3", "h4", "h5", "h6"):
+                parts.append("#" * int(c.name[1]) + " " + inline(c).strip())
+            elif c.name == "p":
+                t = inline(c).strip()
+                if t:
+                    parts.append(t)
+            elif c.name in ("ul", "ol"):
+                for i, li in enumerate(c.find_all("li", recursive=False)):
+                    marker = "-" if c.name == "ul" else f"{i + 1}."
+                    parts.append(f"{marker} {inline(li).strip()}")
+            elif c.name == "blockquote":
+                parts.append("> " + inline(c).strip())
+            elif c.name == "pre":
+                parts.append("```\n" + c.get_text() + "\n```")
+            elif c.name == "hr":
+                parts.append("---")
+            elif c.name == "img":
+                src = c.get("src", "")
+                if src:
+                    parts.append(f"![{c.get('alt', '')}]({src})")
+            elif c.name == "a":
+                parts.append(inline(c).strip())
+            else:  # div/section/article/main/etc. — descend
+                walk(c)
+    walk(root)
+    return "\n\n".join(p for p in parts if p and p.strip())
+
+def _html_to_markdown(html: str) -> str:
+    """Convert rendered HTML to clean Markdown. Uses `markdownify` if installed
+    (best quality) and falls back to a built-in converter otherwise. Drops only
+    noise tags (script/style/etc.); does NOT evaluate CSS, so off-screen text is
+    kept while genuinely useful content and image/link markdown are preserved."""
+    soup = BeautifulSoup(html, "lxml")
+    for tag in soup(["script", "style", "noscript", "svg", "template", "iframe"]):
+        tag.decompose()
+    root = soup.body or soup
     try:
-        headers = {
-            "Accept": "application/json",
-            # Dynamic / JS-rendered (SPA) support: use the headless-browser engine and
-            # wait for the page to settle, so client-rendered and lazy-loaded content is
-            # captured instead of an empty pre-render shell.
-            "x-engine": "browser",
-            "x-timeout": "15",
-            # Keep image/link markdown (the output_exfil tracking pixel is an image).
-            "x-retain-images": "all",
-            "x-retain-links": "all",
-            # Ask Reader to semantically chunk large pages.
-            "x-markdown-chunking": "true",
-        }
-        api_key = os.environ.get("JINA_API_KEY")
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        resp = httpx.get(f"https://r.jina.ai/{url}", headers=headers, timeout=45)
-        if resp.status_code != 200:
-            return {"error": f"Jina Reader error: {resp.text[:300]}"}
+        from markdownify import markdownify as _md
+        return _md(str(root), heading_style="ATX", bullets="-").strip()
+    except Exception:
+        return _bs4_markdown(root).strip()
 
-        # Pull the content out of the JSON (or fall back to raw text), accepting a
-        # ready-made list of chunks from Reader if it provided one.
-        chunk_list = None
+def _local_read_sync(url: str) -> dict:
+    html, title = "", ""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, args=_BROWSER_ARGS)
         try:
-            data = resp.json()
-            d = data.get("data", data) if isinstance(data, dict) else {}
-            jina_chunks = d.get("chunks")
-            content = d.get("content")
-            if isinstance(jina_chunks, list) and jina_chunks:
-                chunk_list = [str(c) for c in jina_chunks]
-            elif isinstance(content, list):
-                chunk_list = [str(c) for c in content]
-            elif isinstance(content, str):
-                chunk_list = _chunk_markdown(content)
-        except Exception:
-            pass
-        if chunk_list is None:
-            chunk_list = _chunk_markdown(resp.text)
+            page = browser.new_page()
+            # A holding/interstitial page loads *cleanly* (domcontentloaded + networkidle
+            # both fire on it), so waiting for load is not enough: a spun-down Render free
+            # tier serves a "starting up" spinner and Cloudflare can throw a headless-browser
+            # challenge — both are SVG-loader pages with no article text. Capturing one
+            # yields a bogus "page had no content" read. So retry until substantive readable
+            # text is present, backing off to give a cold host time to wake.
+            for attempt in range(3):
+                page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                try:
+                    page.wait_for_load_state("networkidle", timeout=12000)
+                except Exception:
+                    pass  # some pages never fully idle (analytics/polling) — read what's there
+                html = page.content()
+                try:
+                    title = page.title()
+                except Exception:
+                    title = ""
+                try:
+                    text = page.locator("body").inner_text()
+                except Exception:
+                    text = ""
+                if len(text.strip()) >= 200:
+                    break  # real content arrived
+                if attempt < 2:
+                    page.wait_for_timeout(4000)  # cold host still spinning up — back off, retry
+        finally:
+            browser.close()  # always release the browser (and its VRAM) even on error
+    return {"title": title, "markdown": _html_to_markdown(html)}
 
-        # Enforce the per-chunk size cap (re-split any oversized chunk) so nothing
-        # gets truncated by the downstream tool-result limit.
-        capped = []
-        for c in chunk_list:
-            capped.extend(_chunk_markdown(c) if len(c) > _JINA_CHUNK_CHARS else [c])
-        chunk_list = capped or [""]
-
-        total = len(chunk_list)
-        idx = max(0, min(int(chunk or 0), total - 1))
-        return {
-            "url": url,
-            "chunk_index": idx,
-            "total_chunks": total,
-            "has_more": idx < total - 1,
-            "next_chunk": (idx + 1) if idx < total - 1 else None,
-            "content": chunk_list[idx],
-        }
+def local_reader(url: str, chunk: int = 0):
+    """Self-hosted page reader (no external API / key): renders JavaScript/SPA pages
+    in a real headless browser, converts them to clean Markdown (links and images
+    preserved), and returns large pages one bounded chunk at a time so the model's
+    context never overflows."""
+    try:
+        res = executor.submit(_local_read_sync, url).result(timeout=90)
     except Exception as e:
+        print(f"[local_reader error] {url}: {e}")
         return {"error": str(e)}
+    chunk_list = _chunk_markdown(res.get("markdown", "")) or [""]
+    total = len(chunk_list)
+    idx = max(0, min(int(chunk or 0), total - 1))
+    return {
+        "url": url,
+        "title": res.get("title", ""),
+        "chunk_index": idx,
+        "total_chunks": total,
+        "has_more": idx < total - 1,
+        "next_chunk": (idx + 1) if idx < total - 1 else None,
+        "content": chunk_list[idx],
+    }
 
 def send_email(to_email: str, subject: str, body: str):
     sender_email = os.environ.get("SMTP_SENDER_EMAIL")
@@ -901,12 +984,21 @@ def update_email_status(email_id: str, action: str, folder: str = "INBOX"):
 
 REGISTRY = {
     "web_search": web_search,
-    "jina_reader": jina_reader,
+    "local_reader": local_reader,
     "scrape_url": scrape_url,
     "send_email": send_email,
     "get_emails": get_emails,
     "update_email_status": update_email_status
 }
+
+# Case-insensitive lookup: some models mis-case the tool name (e.g. "local_Reader"
+# instead of "local_reader"), which otherwise fails as an unknown tool. Maps a
+# lower-cased name back to its canonical registry key.
+_REGISTRY_LC = {k.lower(): k for k in REGISTRY}
+
+def _canonical_tool(name: str) -> str:
+    """Return the registered tool name for `name`, matching case-insensitively."""
+    return _REGISTRY_LC.get((name or "").lower(), name)
 
 # ── Core tool loop with defense layer ────────────────────────────────────────
 
@@ -1114,7 +1206,9 @@ def run_tools(messages, model, extra, max_iterations=6, defense_enabled=True,
         messages.append(msg.model_dump())
 
         for tc in msg.tool_calls:
-            fn_name = tc.function.name
+            # Normalise mis-cased tool names (e.g. "local_Reader") to the canonical
+            # registry key so a valid call isn't dropped as "unknown tool".
+            fn_name = _canonical_tool(tc.function.name)
             defense_stats["total_tool_calls"] += 1
 
             try:

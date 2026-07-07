@@ -18,6 +18,7 @@ from evaluate_defense import TEST_CASES, call_proxy, detect_attack_success, dete
 
 PROXY_URL = "http://localhost:8000"
 DEFAULT_MODEL = "ibm/granite-4-h-tiny"
+DEFAULT_LIVE_URL = "https://nextgen-products.onrender.com"
 
 
 def find_case(case_id: str) -> dict:
@@ -35,7 +36,7 @@ def list_cases():
 
 
 def run_case(case_id: str, model: str, live_url: str = None, vector: str = None,
-             verifier: bool = False, verifier_model: str = None):
+             verifier: bool = False, verifier_model: str = None, show_tool: bool = False):
     tc = find_case(case_id)
 
     mode = f"LIVE {live_url}" + (f"?vector={vector}" if vector else "") if live_url else "pre-injected"
@@ -69,6 +70,17 @@ def run_case(case_id: str, model: str, live_url: str = None, vector: str = None,
         print(f"ERROR: {defended['error']}")
     else:
         print(d_content[:1500])
+
+    # Raw text the agent actually retrieved from its tool calls (e.g. the Markdown
+    # returned by local_reader). Shows exactly what reached the model. Opt-in via --show-tool.
+    if show_tool:
+        print("\n--- TOOL RESULT (retrieved markdown) ---")
+        b_ret = baseline.get("retrieved_content") or "(nothing retrieved — no tool call, or the tool errored)"
+        print("[baseline arm]\n" + b_ret[:4000])
+        d_ret = defended.get("retrieved_content") or "(nothing retrieved)"
+        if d_ret != b_ret:
+            print("\n[defended arm]\n" + d_ret[:4000])
+
     print("\nBaseline defense log:", json.dumps(baseline.get("defense_log", []), indent=2))
     print("Defended defense log:", json.dumps(defended.get("defense_log", []), indent=2))
 
@@ -90,16 +102,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run a single IPI test case against the proxy")
     parser.add_argument("case_id")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Model name as loaded in LM Studio")
+    parser.add_argument("--live", action="store_true",
+                         help=f"Fetch the deployed poisoned site ({DEFAULT_LIVE_URL}) live instead "
+                              "of using a pre-injected payload.")
     parser.add_argument("--live-url", default=None,
-                         help="Base URL of the injection-server site; the agent fetches the real "
-                              "poisoned page instead of using a pre-injected payload.")
+                         help="Override the live site base URL (defaults to the deployed site when --live is set).")
     parser.add_argument("--vector", default=None,
                          help="Stealth vector to request on the live page (e.g. hidden_div, meta_tag, json_ld).")
     parser.add_argument("--verifier-model", default=None,
                          help="Model to use as the Level 3 verifier. Passing this flag ENABLES "
                               "the verifier (defended run becomes L0-L3); omit it for L0-L2 only.")
+    parser.add_argument("--show-tool", action="store_true",
+                         help="Also print the raw Markdown the agent retrieved from its tool calls.")
     args = parser.parse_args()
 
+    # --live uses the default deployed site; --live-url overrides it.
+    live_url = args.live_url or (DEFAULT_LIVE_URL if args.live else None)
     # The presence of --verifier-model is itself the switch for Level 3.
-    run_case(args.case_id, args.model, live_url=args.live_url, vector=args.vector,
-             verifier=bool(args.verifier_model), verifier_model=args.verifier_model)
+    run_case(args.case_id, args.model, live_url=live_url, vector=args.vector,
+             verifier=bool(args.verifier_model), verifier_model=args.verifier_model,
+             show_tool=args.show_tool)
