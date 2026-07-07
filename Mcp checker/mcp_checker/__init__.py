@@ -1,2 +1,0 @@
-"""MCP content safety checker."""
-
