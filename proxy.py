@@ -1000,6 +1000,95 @@ def _canonical_tool(name: str) -> str:
     """Return the registered tool name for `name`, matching case-insensitively."""
     return _REGISTRY_LC.get((name or "").lower(), name)
 
+# ── Level 4: deterministic output-exfil sanitizer (defended path only) ────────
+# "Output exfil" IPI hides a tracking pixel / beacon / data-carrying link in the
+# agent's ANSWER; a Markdown renderer fetches it the instant it displays the reply,
+# leaking a delivery signal (and sometimes the user's query) to the attacker's host.
+# Blocking the whole tool result to stop this destroys utility (the agent refuses).
+# Instead we scrub ONLY the exfil channels from the final answer — a deterministic
+# egress control with ~0 task-utility cost: the textual answer is untouched, and we
+# strip just the auto-firing images, invisible tag chars, data: URIs, and links to
+# hosts the user never asked for. This cannot raise ASR (it only removes content) and
+# does not depend on the model behaving. Ref: Microsoft spotlighting + "deterministic
+# output restrictions" surveyed in the 2026 IPI-defense literature (RESEARCH_LOG F13).
+_TAG_CHARS_RE = re.compile(r"[\U000E0000-\U000E007F]")        # invisible Unicode "tag" block
+_MD_IMAGE_RE  = re.compile(r"!\[[^\]]*\]\([^)]*\)")           # ![alt](url) — auto-rendered
+_DATA_URI_RE  = re.compile(r"data:[^\s)\"'>]+", re.IGNORECASE)
+_MD_LINK_RE   = re.compile(r"\[([^\]]*)\]\(\s*<?(https?://[^)\s>]+)[^)]*\)")  # [text](http url)
+_AUTOLINK_RE  = re.compile(r"<(https?://[^>]+)>")
+_BARE_URL_RE  = re.compile(r"https?://[^\s)>\]}\"']+")
+
+_ENV_ALLOW_DOMAINS = {h.strip().lower() for h in
+                      os.environ.get("OUTPUT_ALLOW_DOMAINS", "").split(",") if h.strip()}
+
+def _url_host(url: str) -> str:
+    m = re.search(r"https?://([^/\s:?#]+)", url or "")
+    return m.group(1).lower() if m else ""
+
+def _requested_hosts(messages) -> set:
+    """Hosts the USER explicitly asked the agent to visit (from user-role messages).
+    Together with OUTPUT_ALLOW_DOMAINS these are the only external domains the answer
+    is entitled to surface; anything else in the reply is treated as egress and
+    dropped. For pure 'search' tasks with no URL this set is empty, so ALL external
+    links are defanged — which is fine, the utility is the text, not the links."""
+    hosts = set()
+    for m in messages or []:
+        if m.get("role") != "user":
+            continue
+        c = m.get("content")
+        if not isinstance(c, str):
+            c = " ".join(b.get("text", "") for b in c if isinstance(b, dict)) if isinstance(c, list) else str(c)
+        for u in _BARE_URL_RE.findall(c or ""):
+            h = _url_host(u)
+            if h:
+                hosts.add(h)
+    return hosts
+
+def _sanitize_agent_output(content: str, messages):
+    """Scrub output-exfil channels from the final answer. Returns (clean, removed_list)."""
+    if not content:
+        return content, []
+    removed = []
+    allow = _requested_hosts(messages) | _ENV_ALLOW_DOMAINS
+
+    def _note(kind, s):
+        removed.append({"type": kind, "snippet": (s or "")[:120]})
+
+    if _TAG_CHARS_RE.search(content):
+        _note("unicode_tag", "invisible tag characters")
+        content = _TAG_CHARS_RE.sub("", content)
+
+    def _img(m):
+        _note("markdown_image", m.group(0)); return ""
+    content = _MD_IMAGE_RE.sub(_img, content)
+
+    def _data(m):
+        _note("data_uri", m.group(0)); return "[removed]"
+    content = _DATA_URI_RE.sub(_data, content)
+
+    def _link(m):
+        text, url = m.group(1), m.group(2)
+        if _url_host(url) not in allow:
+            _note("markdown_link", url); return text
+        return m.group(0)
+    content = _MD_LINK_RE.sub(_link, content)
+
+    def _auto(m):
+        if _url_host(m.group(1)) not in allow:
+            _note("autolink", m.group(1)); return ""
+        return m.group(0)
+    content = _AUTOLINK_RE.sub(_auto, content)
+
+    def _bare(m):
+        if _url_host(m.group(0)) not in allow:
+            _note("bare_url", m.group(0)); return ""
+        return m.group(0)
+    content = _BARE_URL_RE.sub(_bare, content)
+
+    content = re.sub(r"[ \t]{2,}", " ", content).strip()
+    return content, removed
+
+
 # ── Core tool loop with defense layer ────────────────────────────────────────
 
 def run_tools(messages, model, extra, max_iterations=6, defense_enabled=True,
@@ -1443,6 +1532,14 @@ async def proxy(request: Request):
                     reasoning = getattr(retry.choices[0].message, "reasoning_content", reasoning)
             except Exception as e:
                 print(f"[proxy] Retry after empty content failed: {e}")
+
+        # Level 4 — scrub output-exfil channels from the final answer, defended path
+        # only (baseline must stay raw so its ASR reflects the unmitigated attack).
+        if defense_enabled or verifier_enabled:
+            content, _removed = _sanitize_agent_output(content, messages)
+            if _removed:
+                logging.warning(f"[OUTPUT_SANITIZED] removed {len(_removed)} exfil element(s)")
+                defense_log.append({"event": "output_sanitized", "removed": _removed})
 
         if wants_stream:
             return StreamingResponse(
