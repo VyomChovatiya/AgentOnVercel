@@ -1,0 +1,2 @@
+[console_scripts]
+mcp-content-safety = mcp_checker.server:main
