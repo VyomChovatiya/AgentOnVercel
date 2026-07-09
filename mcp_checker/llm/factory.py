@@ -10,6 +10,8 @@ from mcp_checker.llm.openai_compatible import OpenAICompatibleProvider
 def create_llm_provider(settings: Settings) -> LLMProvider | None:
     if not settings.llm_enabled:
         return None
+    if not settings.llm_api_key:
+        return None
 
     provider = settings.llm_provider
     if provider in {"openai", "openai_compatible", "openai-compatible"}:

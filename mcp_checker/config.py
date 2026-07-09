@@ -24,6 +24,7 @@ class Settings:
     mcp_transport: str
     mcp_host: str
     mcp_port: int
+    mcp_host_origin_protection: bool
 
 
 def _bool_env(name: str, default: bool) -> bool:
@@ -48,4 +49,5 @@ def load_settings() -> Settings:
         mcp_transport=os.getenv("MCP_TRANSPORT", "stdio").strip().lower(),
         mcp_host=os.getenv("MCP_HOST", "127.0.0.1").strip(),
         mcp_port=int(os.getenv("MCP_PORT", "8000")),
+        mcp_host_origin_protection=_bool_env("MCP_HOST_ORIGIN_PROTECTION", True),
     )
