@@ -72,7 +72,10 @@ class SafetyAnalyzer:
         for item in regex_result["regex"]["matches"]:
             category = GUARD_CATEGORY_BY_LABEL.get(item["label"], SafetyCategory.prompt_injection)
             weight = 10 if item["action"] == "BLOCK" else 6
-            evidence.append(EvidenceItem(category=category, excerpt=item["matched"], weight=weight))
+            evidence.append(EvidenceItem(
+                category=category, excerpt=item["matched"], weight=weight,
+                source=f"regex:{item['label']}",
+            ))
         return evidence
 
     def _assessment_from_rules(
@@ -102,6 +105,7 @@ class SafetyAnalyzer:
             categories=categories,
             summary=summary,
             evidence=[item.excerpt for item in rule_evidence],
+            evidence_details=list(rule_evidence),
             recommended_action=action,
             metadata={
                 "source_url": source_url,
@@ -126,6 +130,16 @@ class SafetyAnalyzer:
         risk_level = max(rules.risk_level, llm.risk_level, key=levels.index)
         categories = sorted(set(rules.categories + llm.categories), key=lambda item: item.value)
         evidence = (rules.evidence + llm.evidence)[:12]
+        # Structured proof: keep the rule hits (already EvidenceItem) and turn each
+        # LLM-flagged span into one too, so the caller sees the offending text + why.
+        llm_weight = {"safe": 2, "low": 4, "medium": 6, "high": 8, "critical": 10}.get(
+            llm.risk_level.value, 6)
+        llm_category = llm.categories[0] if llm.categories else SafetyCategory.prompt_injection
+        llm_details = [
+            EvidenceItem(category=llm_category, excerpt=str(ex)[:240], weight=llm_weight, source="llm")
+            for ex in llm.evidence
+        ]
+        evidence_details = (list(rules.evidence_details) + llm_details)[:12]
         safe = risk_level in {RiskLevel.safe, RiskLevel.low} and rules.safe and llm.safe
         metadata = {
             **rules.metadata,
@@ -152,6 +166,7 @@ class SafetyAnalyzer:
             categories=categories,
             summary=summary,
             evidence=evidence,
+            evidence_details=evidence_details,
             recommended_action=action,
             metadata=metadata,
         )

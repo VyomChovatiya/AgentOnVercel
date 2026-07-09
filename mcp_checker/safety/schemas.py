@@ -30,6 +30,9 @@ class EvidenceItem(BaseModel):
     category: SafetyCategory
     excerpt: str = Field(max_length=240)
     weight: int = Field(ge=1, le=10)
+    # Where this proof came from: "regex:<label>" for a rule hit, or "llm" for a
+    # model-flagged span. Lets a caller see WHY the content was judged unsafe.
+    source: str = "rule"
 
 
 class SafetyAssessment(BaseModel):
@@ -38,5 +41,9 @@ class SafetyAssessment(BaseModel):
     categories: list[SafetyCategory] = Field(default_factory=list)
     summary: str
     evidence: list[str] = Field(default_factory=list)
+    # Structured proof of unsafety: each item carries the offending excerpt, its
+    # category, a severity weight, and its source (which regex rule or the LLM).
+    # `evidence` (above) stays a flat string list for backward compatibility.
+    evidence_details: list[EvidenceItem] = Field(default_factory=list)
     recommended_action: str
     metadata: dict[str, Any] = Field(default_factory=dict)

@@ -27,7 +27,10 @@ class OpenAICompatibleProvider(LLMProvider):
         payload = {
             "model": self.settings.llm_model,
             "temperature": self.settings.llm_temperature,
-            "response_format": {"type": "json_object"},
+            # NOTE: OpenAI's {"type": "json_object"} is rejected by LM Studio
+            # ('response_format.type must be json_schema or text'). The system prompt
+            # already mandates JSON and extract_json_object() is tolerant, so we omit
+            # response_format for cross-provider compatibility (LM Studio/Ollama/OpenAI).
             "messages": [
                 {"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT},
                 {
