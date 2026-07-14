@@ -1,0 +1,42 @@
+# Render Blueprint — MCP Webpage Safety Scanner (fastmcp HTTP server).
+#
+# Long-running web service (the right fit for an MCP server: persistent, supports
+# streaming). Deploys the `mcp` branch of this repo.
+#
+# The classifier LLM runs against a HOSTED provider — Render cannot reach a local
+# LM Studio. LLM_API_KEY is a SECRET: it is marked `sync: false` so Render prompts
+# you for it in the dashboard instead of storing it in git.
+#
+# After deploy, the MCP endpoint is:  https://<service>.onrender.com/mcp
+services:
+  - type: web
+    name: mcp-safety-scanner
+    runtime: python
+    plan: free
+    branch: mcp
+    buildCommand: pip install -r requirements.txt
+    # Bind to the port Render assigns ($PORT) via the app's MCP_PORT setting.
+    startCommand: MCP_PORT=$PORT python -m mcp_checker.server --llm
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      # ── MCP transport ──
+      - key: MCP_TRANSPORT
+        value: http
+      - key: MCP_HOST
+        value: 0.0.0.0
+      # Required behind Render's proxy: the incoming Host header is the onrender.com
+      # domain, not 127.0.0.1, so origin protection must be off (else 421/403).
+      - key: MCP_HOST_ORIGIN_PROTECTION
+        value: "false"
+      # ── Hosted LLM classifier (OpenAI-compatible; uses plain httpx) ──
+      - key: LLM_ENABLED
+        value: "true"
+      - key: LLM_PROVIDER
+        value: openai_compatible
+      - key: LLM_MODEL
+        value: gpt-4.1-mini
+      - key: LLM_BASE_URL
+        value: https://api.openai.com/v1
+      - key: LLM_API_KEY
+        sync: false   # set this in the Render dashboard (secret)
